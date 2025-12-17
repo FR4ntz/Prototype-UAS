@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Waktu pembuatan: 17 Des 2025 pada 16.53
+-- Waktu pembuatan: 17 Des 2025 pada 19.14
 -- Versi server: 10.4.32-MariaDB
 -- Versi PHP: 8.0.30
 
@@ -42,7 +42,7 @@ CREATE TABLE `bimbingan` (
 --
 
 INSERT INTO `bimbingan` (`id_bimbingan`, `nim`, `nidn_pembimbing`, `tanggal`, `topik`, `catatan_dosen`, `status`) VALUES
-(1, '2024081012', 'DOSEN001', '2025-12-17', 'Saya disni', 'jelek banget gila', 'Revisi');
+(1, '2024081012', 'DOSEN001', '2025-12-17', 'Saya disni', 'jelek banget gila', 'ACC');
 
 -- --------------------------------------------------------
 
@@ -114,6 +114,22 @@ INSERT INTO `notifikasi` (`id_notif`, `nim`, `judul`, `pesan`, `tanggal`, `is_re
 -- --------------------------------------------------------
 
 --
+-- Struktur dari tabel `perpanjangan`
+--
+
+CREATE TABLE `perpanjangan` (
+  `id_perpanjangan` int(11) NOT NULL,
+  `id_proposal` int(11) DEFAULT NULL,
+  `nim` char(15) DEFAULT NULL,
+  `alasan` text DEFAULT NULL,
+  `durasi_bulan` int(11) DEFAULT 6,
+  `tanggal_pengajuan` date DEFAULT NULL,
+  `status_perpanjangan` enum('Diajukan','Disetujui','Ditolak') DEFAULT 'Diajukan'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
 -- Struktur dari tabel `pesan`
 --
 
@@ -140,6 +156,13 @@ CREATE TABLE `proposal` (
   `status` enum('Diajukan','Disetujui','Revisi','Ditolak') DEFAULT 'Diajukan',
   `tanggal_pengajuan` date DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data untuk tabel `proposal`
+--
+
+INSERT INTO `proposal` (`id_proposal`, `nim`, `judul`, `jenis_ta`, `file_proposal`, `status`, `tanggal_pengajuan`) VALUES
+(1, '2024081012', 'Ini Judul', 'Rancang Bangun', NULL, 'Disetujui', '2025-12-17');
 
 -- --------------------------------------------------------
 
@@ -188,6 +211,14 @@ ALTER TABLE `notifikasi`
   ADD PRIMARY KEY (`id_notif`);
 
 --
+-- Indeks untuk tabel `perpanjangan`
+--
+ALTER TABLE `perpanjangan`
+  ADD PRIMARY KEY (`id_perpanjangan`),
+  ADD KEY `id_proposal` (`id_proposal`),
+  ADD KEY `nim` (`nim`);
+
+--
 -- Indeks untuk tabel `pesan`
 --
 ALTER TABLE `pesan`
@@ -225,6 +256,12 @@ ALTER TABLE `notifikasi`
   MODIFY `id_notif` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
 
 --
+-- AUTO_INCREMENT untuk tabel `perpanjangan`
+--
+ALTER TABLE `perpanjangan`
+  MODIFY `id_perpanjangan` int(11) NOT NULL AUTO_INCREMENT;
+
+--
 -- AUTO_INCREMENT untuk tabel `pesan`
 --
 ALTER TABLE `pesan`
@@ -234,7 +271,7 @@ ALTER TABLE `pesan`
 -- AUTO_INCREMENT untuk tabel `proposal`
 --
 ALTER TABLE `proposal`
-  MODIFY `id_proposal` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `id_proposal` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
 
 --
 -- AUTO_INCREMENT untuk tabel `sidang`
@@ -252,6 +289,13 @@ ALTER TABLE `sidang`
 ALTER TABLE `bimbingan`
   ADD CONSTRAINT `bimbingan_ibfk_1` FOREIGN KEY (`nim`) REFERENCES `mahasiswa` (`nim`),
   ADD CONSTRAINT `bimbingan_ibfk_2` FOREIGN KEY (`nidn_pembimbing`) REFERENCES `dosen` (`nidn`);
+
+--
+-- Ketidakleluasaan untuk tabel `perpanjangan`
+--
+ALTER TABLE `perpanjangan`
+  ADD CONSTRAINT `perpanjangan_ibfk_1` FOREIGN KEY (`id_proposal`) REFERENCES `proposal` (`id_proposal`),
+  ADD CONSTRAINT `perpanjangan_ibfk_2` FOREIGN KEY (`nim`) REFERENCES `mahasiswa` (`nim`);
 
 --
 -- Ketidakleluasaan untuk tabel `proposal`
