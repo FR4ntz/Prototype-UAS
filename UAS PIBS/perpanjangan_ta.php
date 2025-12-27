@@ -1,118 +1,70 @@
 <?php
-session_start();
-include 'koneksi.php';
+// Cek Data Proposal
+$prop_setuju = mysqli_fetch_assoc(mysqli_query($conn, "SELECT * FROM proposal WHERE nim='$nim' AND status='Disetujui'"));
 
-// Cek Login Mahasiswa
-if ($_SESSION['role'] != 'mahasiswa') { header("Location: index.php"); exit; }
-
-$nim = $_SESSION['nim'];
-
-// Cek apakah punya proposal yang sedang berjalan (Disetujui)
-$prop = mysqli_fetch_assoc(mysqli_query($conn, "SELECT * FROM proposal WHERE nim='$nim' AND status='Disetujui'"));
-
-// PROSES PENGAJUAN
 if (isset($_POST['ajukan_extend'])) {
-    $id_prop = $prop['id_proposal'];
+    $id_prop = $prop_setuju['id_proposal'];
     $alasan  = $_POST['alasan'];
     $tgl     = date('Y-m-d');
     
-    // Cek apakah sedang ada pengajuan pending (biar ga spam)
     $cek = mysqli_query($conn, "SELECT * FROM perpanjangan WHERE id_proposal='$id_prop' AND status_perpanjangan='Diajukan'");
-    
     if (mysqli_num_rows($cek) == 0) {
-        $query = "INSERT INTO perpanjangan (id_proposal, nim, alasan, tanggal_pengajuan) 
-                  VALUES ('$id_prop', '$nim', '$alasan', '$tgl')";
-        if(mysqli_query($conn, $query)){
-            echo "<script>alert('Pengajuan Perpanjangan Berhasil Dikirim!'); window.location='perpanjangan_ta.php';</script>";
+        $query = "INSERT INTO perpanjangan (id_proposal, nim, alasan, tanggal_pengajuan) VALUES ('$id_prop', '$nim', '$alasan', '$tgl')";
+        if(mysqli_query($conn, $query)){ 
+            echo "<script>alert('Berhasil diajukan!'); window.location='dashboard_mhs.php?page=extend';</script>"; 
         }
     } else {
-        echo "<script>alert('Anda masih memiliki pengajuan perpanjangan yang belum diverifikasi!');</script>";
+        echo "<script>alert('Masih ada pengajuan pending!');</script>";
     }
 }
 ?>
 
-<!DOCTYPE html>
-<html lang="id">
-<head>
-    <title>Perpanjangan Masa Studi TA</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-</head>
-<body class="bg-light">
-
-<nav class="navbar navbar-dark bg-primary mb-4">
-    <div class="container">
-        <span class="navbar-brand">Formulir Perpanjangan TA (Extend)</span>
-        <a href="dashboard_mhs.php" class="btn btn-outline-light btn-sm">Kembali ke Dashboard</a>
+<div class="card shadow-sm">
+    <div class="card-header bg-danger text-white">
+        <i class="bi bi-clock-history"></i> Form Perpanjangan (Extend)
     </div>
-</nav>
-
-<div class="container">
-    <div class="row">
-        <div class="col-md-5 mb-4">
-            <div class="card shadow-sm">
-                <div class="card-header bg-white fw-bold">Ajukan Perpanjangan (6 Bulan)</div>
-                <div class="card-body">
-                    <?php if ($prop): ?>
-                        <div class="alert alert-info small">
-                            <strong>Judul TA Saat Ini:</strong><br>
-                            <?= $prop['judul'] ?>
-                        </div>
-                        <form method="POST">
-                            <div class="mb-3">
-                                <label class="form-label">Alasan Perpanjangan</label>
-                                <textarea name="alasan" class="form-control" rows="5" required placeholder="Jelaskan mengapa Anda membutuhkan tambahan waktu (misal: Kendala data, sakit, alat rusak, dll)..."></textarea>
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label">Durasi</label>
-                                <input type="text" class="form-control" value="6 Bulan (Sesuai Aturan Akademik)" readonly>
-                            </div>
-                            <button type="submit" name="ajukan_extend" class="btn btn-warning w-100 fw-bold">Kirim Pengajuan</button>
-                        </form>
-                    <?php else: ?>
-                        <div class="alert alert-danger">
-                            Anda belum memiliki proposal yang disetujui. Tidak dapat mengajukan perpanjangan.
-                        </div>
-                    <?php endif; ?>
-                </div>
+    <div class="card-body">
+        <?php if ($prop_setuju): ?>
+            <div class="alert alert-info small mb-3">
+                <strong>Judul TA Saat Ini:</strong><br>
+                <?= $prop_setuju['judul'] ?>
             </div>
-        </div>
-
-        <div class="col-md-7">
-            <div class="card shadow-sm">
-                <div class="card-header fw-bold">Riwayat Pengajuan Perpanjangan</div>
-                <div class="card-body">
-                    <table class="table table-striped small">
-                        <thead>
-                            <tr>
-                                <th>Tanggal</th>
-                                <th>Alasan</th>
-                                <th>Status</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <?php
-                            $hist = mysqli_query($conn, "SELECT * FROM perpanjangan WHERE nim='$nim' ORDER BY tanggal_pengajuan DESC");
-                            while($h = mysqli_fetch_array($hist)):
-                            ?>
-                            <tr>
-                                <td><?= $h['tanggal_pengajuan'] ?></td>
-                                <td><?= $h['alasan'] ?></td>
-                                <td>
-                                    <?php 
-                                        $bg = ($h['status_perpanjangan']=='Disetujui') ? 'success' : (($h['status_perpanjangan']=='Ditolak')?'danger':'secondary');
-                                        echo "<span class='badge bg-$bg'>{$h['status_perpanjangan']}</span>";
-                                    ?>
-                                </td>
-                            </tr>
-                            <?php endwhile; ?>
-                            <?php if(mysqli_num_rows($hist) == 0) echo "<tr><td colspan='3' class='text-center'>Belum ada riwayat.</td></tr>"; ?>
-                        </tbody>
-                    </table>
+            <form method="POST">
+                <div class="mb-3">
+                    <label class="form-label">Alasan Perpanjangan</label>
+                    <textarea name="alasan" class="form-control" rows="4" required placeholder="Jelaskan alasan keterlambatan..."></textarea>
                 </div>
+                <div class="mb-3">
+                    <label class="form-label">Durasi</label>
+                    <input type="text" class="form-control" value="6 Bulan (Sesuai Aturan)" readonly>
+                </div>
+                <button type="submit" name="ajukan_extend" class="btn btn-danger w-100">Kirim Pengajuan</button>
+            </form>
+        <?php else: ?>
+            <div class="alert alert-warning">
+                Anda belum memiliki proposal yang disetujui. Tidak dapat mengajukan perpanjangan.
             </div>
-        </div>
+        <?php endif; ?>
     </div>
 </div>
 
-</body>
-</html>
+<div class="card mt-3">
+    <div class="card-header fw-bold">Riwayat Pengajuan</div>
+    <div class="card-body p-0">
+        <table class="table table-striped mb-0 small">
+            <thead><tr><th>Tgl</th><th>Alasan</th><th>Status</th></tr></thead>
+            <tbody>
+                <?php
+                $hist = mysqli_query($conn, "SELECT * FROM perpanjangan WHERE nim='$nim' ORDER BY tanggal_pengajuan DESC");
+                while($h = mysqli_fetch_array($hist)):
+                ?>
+                <tr>
+                    <td><?= $h['tanggal_pengajuan'] ?></td>
+                    <td><?= substr($h['alasan'],0,30) ?>...</td>
+                    <td><span class="badge bg-<?= ($h['status_perpanjangan']=='Disetujui')?'success':'warning' ?>"><?= $h['status_perpanjangan'] ?></span></td>
+                </tr>
+                <?php endwhile; ?>
+            </tbody>
+        </table>
+    </div>
+</div>

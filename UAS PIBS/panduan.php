@@ -1,42 +1,39 @@
-<!DOCTYPE html>
-<html lang="id">
-<head>
-    <title>Panduan Sistem</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-</head>
-<body class="bg-light p-4">
-    <div class="container bg-white p-4 rounded shadow">
-        <h3 class="mb-4">Panduan & Tutorial SITA</h3>
-        <div class="accordion" id="accordionExample">
+<div class="card shadow-sm">
+    <div class="card-header bg-info text-white">
+        <i class="bi bi-question-circle"></i> Pusat Bantuan (FAQ)
+    </div>
+    <div class="card-body">
+        <div class="accordion" id="accordionFAQ">
             <div class="accordion-item">
                 <h2 class="accordion-header">
-                    <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapseOne">
-                        1. Cara Mengajukan Proposal
-                    </button>
+                    <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#c1">Bagaimana cara mengajukan proposal?</button>
                 </h2>
-                <div id="collapseOne" class="accordion-collapse collapse show">
-                    <div class="accordion-body">
-                        Masuk ke menu <strong>Pengajuan Proposal</strong>. Isi judul dan upload file PDF. Pastikan SKS Anda minimal 120.
+                <div id="c1" class="accordion-collapse collapse show" data-bs-parent="#accordionFAQ">
+                    <div class="accordion-body small">
+                        Klik menu "Pengajuan Proposal" di sidebar kiri. Isi judul, pilih jenis TA (Rancang Bangun/Skripsi), dan unggah file PDF proposal Anda.
                     </div>
                 </div>
             </div>
             <div class="accordion-item">
                 <h2 class="accordion-header">
-                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseTwo">
-                        2. Syarat Minimal Bimbingan
-                    </button>
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#c2">Berapa kali minimal bimbingan?</button>
                 </h2>
-                <div id="collapseTwo" class="accordion-collapse collapse">
-                    <div class="accordion-body">
-                        Mahasiswa wajib melakukan bimbingan minimal <strong>8 kali</strong> yang tercatat di sistem agar tombol pendaftaran sidang aktif.
+                <div id="c2" class="accordion-collapse collapse" data-bs-parent="#accordionFAQ">
+                    <div class="accordion-body small">
+                        Mahasiswa wajib melakukan minimal 8 kali bimbingan dengan status "ACC" sebelum dapat mendaftar sidang.
                     </div>
                 </div>
             </div>
-        </div>
-        <div class="mt-4 text-center">
-            <a href="dashboard_mhs.php" class="btn btn-primary">Kembali ke Dashboard</a>
+            <div class="accordion-item">
+                <h2 class="accordion-header">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#c3">Fitur AI Assistant untuk apa?</button>
+                </h2>
+                <div id="c3" class="accordion-collapse collapse" data-bs-parent="#accordionFAQ">
+                    <div class="accordion-body small">
+                        Fitur ini menggunakan teknologi Llama-3 untuk membantu Anda mencari ide judul, referensi, atau memperbaiki tata bahasa laporan.
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-</body>
-</html>
+</div>
