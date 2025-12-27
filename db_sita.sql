@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Waktu pembuatan: 17 Des 2025 pada 19.14
+-- Waktu pembuatan: 27 Des 2025 pada 08.48
 -- Versi server: 10.4.32-MariaDB
 -- Versi PHP: 8.0.30
 
@@ -42,7 +42,14 @@ CREATE TABLE `bimbingan` (
 --
 
 INSERT INTO `bimbingan` (`id_bimbingan`, `nim`, `nidn_pembimbing`, `tanggal`, `topik`, `catatan_dosen`, `status`) VALUES
-(1, '2024081012', 'DOSEN001', '2025-12-17', 'Saya disni', 'jelek banget gila', 'ACC');
+(4, '202408108', 'DOSEN001', '2025-12-27', 'wdadwa', 'www', 'ACC'),
+(5, '202408108', 'DOSEN001', '2025-12-27', 'ssss', 'aww', 'ACC'),
+(6, '202408108', 'DOSEN001', '2025-12-27', 'ssss', 'aww', 'ACC'),
+(7, '202408108', 'DOSEN001', '2025-12-27', 'sssssssss', 'aww', 'ACC'),
+(8, '202408108', 'DOSEN001', '2025-12-27', 'awdasd', 'aww', 'ACC'),
+(9, '202408108', 'DOSEN001', '2025-12-27', 'asdwas', 'aww', 'ACC'),
+(10, '202408108', 'DOSEN001', '2025-12-27', 'sdawsd', 'aww', 'ACC'),
+(11, '202408108', 'DOSEN001', '2025-12-27', 'wasdwa', 'aww', 'ACC');
 
 -- --------------------------------------------------------
 
@@ -86,8 +93,7 @@ CREATE TABLE `mahasiswa` (
 --
 
 INSERT INTO `mahasiswa` (`nim`, `nama`, `email`, `password`, `total_sks`, `jsdp_poin`) VALUES
-('2024081012', 'Farant Marchelino', 'farant@upj.ac.id', '202cb962ac59075b964b07152d234b70', 130, 650),
-('2024081028', 'Ruud Zaki', 'ruud@upj.ac.id', '202cb962ac59075b964b07152d234b70', 110, 500);
+('202408108', 'Laurensius Jovito', NULL, '202cb962ac59075b964b07152d234b70', 160, 10000);
 
 -- --------------------------------------------------------
 
@@ -103,13 +109,6 @@ CREATE TABLE `notifikasi` (
   `tanggal` date DEFAULT NULL,
   `is_read` tinyint(1) DEFAULT 0
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
---
--- Dumping data untuk tabel `notifikasi`
---
-
-INSERT INTO `notifikasi` (`id_notif`, `nim`, `judul`, `pesan`, `tanggal`, `is_read`) VALUES
-(1, '2024081012', 'Deadline Revisi', 'Harap segera kumpulkan revisi Bab 1 sebelum tanggal 25.', '2025-12-17', 0);
 
 -- --------------------------------------------------------
 
@@ -138,8 +137,18 @@ CREATE TABLE `pesan` (
   `pengirim` char(15) DEFAULT NULL,
   `penerima` char(15) DEFAULT NULL,
   `isi_pesan` text DEFAULT NULL,
-  `waktu` datetime DEFAULT current_timestamp()
+  `waktu` datetime DEFAULT current_timestamp(),
+  `is_read` tinyint(1) DEFAULT 0
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data untuk tabel `pesan`
+--
+
+INSERT INTO `pesan` (`id_pesan`, `pengirim`, `penerima`, `isi_pesan`, `waktu`, `is_read`) VALUES
+(8, '202408108', 'DOSEN001', 'haloo bu', '2025-12-27 05:44:13', 0),
+(9, 'DOSEN001', '202408108', 'halo', '2025-12-27 05:46:57', 0),
+(10, 'DOSEN001', '202408108', 'halooo', '2025-12-27 05:49:37', 0);
 
 -- --------------------------------------------------------
 
@@ -154,15 +163,16 @@ CREATE TABLE `proposal` (
   `jenis_ta` enum('Rancang Bangun','Skripsi','Publikasi') DEFAULT NULL,
   `file_proposal` varchar(255) DEFAULT NULL,
   `status` enum('Diajukan','Disetujui','Revisi','Ditolak') DEFAULT 'Diajukan',
-  `tanggal_pengajuan` date DEFAULT NULL
+  `tanggal_pengajuan` date DEFAULT NULL,
+  `nidn_pembimbing` char(15) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Dumping data untuk tabel `proposal`
 --
 
-INSERT INTO `proposal` (`id_proposal`, `nim`, `judul`, `jenis_ta`, `file_proposal`, `status`, `tanggal_pengajuan`) VALUES
-(1, '2024081012', 'Ini Judul', 'Rancang Bangun', NULL, 'Disetujui', '2025-12-17');
+INSERT INTO `proposal` (`id_proposal`, `nim`, `judul`, `jenis_ta`, `file_proposal`, `status`, `tanggal_pengajuan`, `nidn_pembimbing`) VALUES
+(3, '202408108', 'wwww', 'Skripsi', NULL, 'Disetujui', '2025-12-27', 'DOSEN001');
 
 -- --------------------------------------------------------
 
@@ -173,12 +183,21 @@ INSERT INTO `proposal` (`id_proposal`, `nim`, `judul`, `jenis_ta`, `file_proposa
 CREATE TABLE `sidang` (
   `id_sidang` int(11) NOT NULL,
   `id_proposal` int(11) DEFAULT NULL,
+  `file_laporan` varchar(255) DEFAULT NULL,
   `nidn_penguji` char(15) DEFAULT NULL,
   `tanggal_sidang` datetime DEFAULT NULL,
   `ruangan` varchar(50) DEFAULT NULL,
   `nilai_akhir` float DEFAULT NULL,
+  `status_sidang` varchar(30) DEFAULT 'Menunggu Jadwal',
   `status_lulus` tinyint(1) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data untuk tabel `sidang`
+--
+
+INSERT INTO `sidang` (`id_sidang`, `id_proposal`, `file_laporan`, `nidn_penguji`, `tanggal_sidang`, `ruangan`, `nilai_akhir`, `status_sidang`, `status_lulus`) VALUES
+(3, 3, 'aww', 'DOSEN001', '2025-12-20 03:00:00', 'B801', NULL, 'Dijadwalkan', NULL);
 
 --
 -- Indexes for dumped tables
@@ -247,7 +266,7 @@ ALTER TABLE `sidang`
 -- AUTO_INCREMENT untuk tabel `bimbingan`
 --
 ALTER TABLE `bimbingan`
-  MODIFY `id_bimbingan` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+  MODIFY `id_bimbingan` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=12;
 
 --
 -- AUTO_INCREMENT untuk tabel `notifikasi`
@@ -259,25 +278,25 @@ ALTER TABLE `notifikasi`
 -- AUTO_INCREMENT untuk tabel `perpanjangan`
 --
 ALTER TABLE `perpanjangan`
-  MODIFY `id_perpanjangan` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `id_perpanjangan` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
 
 --
 -- AUTO_INCREMENT untuk tabel `pesan`
 --
 ALTER TABLE `pesan`
-  MODIFY `id_pesan` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `id_pesan` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=11;
 
 --
 -- AUTO_INCREMENT untuk tabel `proposal`
 --
 ALTER TABLE `proposal`
-  MODIFY `id_proposal` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+  MODIFY `id_proposal` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
 
 --
 -- AUTO_INCREMENT untuk tabel `sidang`
 --
 ALTER TABLE `sidang`
-  MODIFY `id_sidang` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `id_sidang` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
 
 --
 -- Ketidakleluasaan untuk tabel pelimpahan (Dumped Tables)
