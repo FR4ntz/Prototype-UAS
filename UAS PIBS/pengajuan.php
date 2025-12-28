@@ -1,84 +1,247 @@
 <?php
-// AMBIL DATA PROPOSAL EKSISTING
+// Pastikan NIM terdefinisi
+if (!isset($nim) || empty($nim)) {
+    $nim = isset($_SESSION['username']) ? $_SESSION['username'] : ''; 
+    if(empty($nim)) { die("Error: Sesi NIM habis. Silakan login ulang."); }
+}
+
+// 1. AMBIL DATA PROPOSAL
 $prop_lama = mysqli_fetch_assoc(mysqli_query($conn, "SELECT * FROM proposal WHERE nim='$nim'"));
 
-// LOGIKA PROSES SIMPAN / UPDATE
-if (isset($_POST['submit'])) {
+// 2. AMBIL DATA PERPANJANGAN
+$ext_lama = null;
+if ($prop_lama) {
+    $id_prop = $prop_lama['id_proposal'];
+    $ext_lama = mysqli_fetch_assoc(mysqli_query($conn, "SELECT * FROM perpanjangan WHERE id_proposal='$id_prop'"));
+}
+
+// =================================================================================
+// LOGIKA 1: SUBMIT / REVISI PROPOSAL (+ FILE UPLOAD)
+// =================================================================================
+if (isset($_POST['submit_proposal'])) {
     $judul = mysqli_real_escape_string($conn, $_POST['judul']);
     $jenis = $_POST['jenis'];
-    $tgl = date('Y-m-d');
+    $tgl   = date('Y-m-d');
 
-    if ($prop_lama) {
-        // --- LOGIKA UPDATE (JIKA SUDAH ADA PROPOSAL) ---
-        if ($prop_lama['status'] == 'Revisi' || $prop_lama['status'] == 'Ditolak') {
-            $query = "UPDATE proposal SET judul='$judul', jenis_ta='$jenis', status='Diajukan', tanggal_pengajuan='$tgl' WHERE nim='$nim'";
-            if (mysqli_query($conn, $query)) {
-                echo "<script>alert('Revisi proposal berhasil dikirim ulang!'); window.location='dashboard_mhs.php?page=pengajuan';</script>";
+    // --- PROSES UPLOAD FILE ---
+    $file_upload = ""; // Default kosong
+    $upload_ok = true;
+    
+    // Cek apakah ada file yang diupload
+    if (isset($_FILES['file_proposal']) && $_FILES['file_proposal']['error'] == 0) {
+        $target_dir = "uploads/proposal/";
+        // Buat folder jika belum ada
+        if (!file_exists($target_dir)) { mkdir($target_dir, 0777, true); }
+
+        $file_name = $_FILES['file_proposal']['name'];
+        $file_tmp  = $_FILES['file_proposal']['tmp_name'];
+        $file_ext  = strtolower(pathinfo($file_name, PATHINFO_EXTENSION));
+
+        // Validasi ekstensi (Hanya PDF)
+        if ($file_ext != "pdf") {
+            echo "<script>alert('Gagal: Hanya file PDF yang diperbolehkan!');</script>";
+            $upload_ok = false;
+        } else {
+            // Rename file agar unik (NIM_Timestamp.pdf)
+            $new_name = $nim . "_" . time() . ".pdf";
+            $target_file = $target_dir . $new_name;
+
+            if (move_uploaded_file($file_tmp, $target_file)) {
+                $file_upload = $new_name;
+            } else {
+                echo "<script>alert('Gagal mengupload file ke server.');</script>";
+                $upload_ok = false;
+            }
+        }
+    }
+    // ---------------------------
+
+    if ($upload_ok) {
+        if ($prop_lama) {
+            // LOGIKA UPDATE (REVISI)
+            if ($prop_lama['status'] == 'Revisi' || $prop_lama['status'] == 'Ditolak') {
+                // Jika ada file baru, update kolom file. Jika tidak, pakai file lama.
+                $sql_file = ($file_upload != "") ? ", file_proposal='$file_upload'" : "";
+
+                $query = "UPDATE proposal SET judul='$judul', jenis_ta='$jenis', status='Diajukan', tanggal_pengajuan='$tgl', catatan_koor='' $sql_file WHERE nim='$nim'";
+                
+                if (mysqli_query($conn, $query)) {
+                    echo "<script>alert('Revisi proposal berhasil dikirim!'); window.location='dashboard_mhs.php?page=pengajuan';</script>";
+                } else {
+                    echo "<script>alert('Gagal Update Proposal: ".mysqli_error($conn)."');</script>";
+                }
             }
         } else {
-            echo "<script>alert('Proposal Anda sedang diproses atau sudah disetujui. Tidak bisa mengajukan baru.');</script>";
+            // LOGIKA INSERT (BARU)
+            if ($file_upload == "") {
+                echo "<script>alert('Harap upload file proposal (PDF)!');</script>";
+            } else {
+                $query = "INSERT INTO proposal (nim, judul, jenis_ta, file_proposal, status, tanggal_pengajuan) VALUES ('$nim', '$judul', '$jenis', '$file_upload', 'Diajukan', '$tgl')";
+                
+                if (mysqli_query($conn, $query)) {
+                    echo "<script>alert('Proposal berhasil diajukan!'); window.location='dashboard_mhs.php?page=pengajuan';</script>";
+                } else {
+                    echo "<script>alert('Gagal Simpan Proposal: ".mysqli_error($conn)."');</script>";
+                }
+            }
         }
+    }
+}
+
+// =================================================================================
+// LOGIKA 2: SUBMIT PERPANJANGAN
+// =================================================================================
+if (isset($_POST['submit_extend'])) {
+    $id_prop = $prop_lama['id_proposal']; 
+    $lama    = $_POST['lama_perpanjangan'];
+    $alasan  = mysqli_real_escape_string($conn, $_POST['alasan']);
+    $tgl     = date('Y-m-d');
+
+    $cek_ex = mysqli_query($conn, "SELECT id_perpanjangan FROM perpanjangan WHERE id_proposal='$id_prop'");
+    if(mysqli_num_rows($cek_ex) > 0){
+         $q_ex = "UPDATE perpanjangan SET lama_perpanjangan='$lama', alasan='$alasan', status_perpanjangan='Diajukan', tanggal_pengajuan='$tgl' WHERE id_proposal='$id_prop'";
     } else {
-        // --- LOGIKA INSERT (BARU PERTAMA KALI) ---
-        $query = "INSERT INTO proposal (nim, judul, jenis_ta, status, tanggal_pengajuan) 
-                  VALUES ('$nim', '$judul', '$jenis', 'Diajukan', '$tgl')";
-        if (mysqli_query($conn, $query)) {
-            echo "<script>alert('Berhasil diajukan!'); window.location='dashboard_mhs.php?page=pengajuan';</script>";
-        }
+         $q_ex = "INSERT INTO perpanjangan (nim, id_proposal, lama_perpanjangan, alasan, status_perpanjangan, tanggal_pengajuan) 
+                  VALUES ('$nim', '$id_prop', '$lama', '$alasan', 'Diajukan', '$tgl')";
+    }
+
+    if (mysqli_query($conn, $q_ex)) {
+        echo "<script>alert('Pengajuan Perpanjangan Berhasil Dikirim!'); window.location='dashboard_mhs.php?page=pengajuan';</script>";
+    } else {
+        echo "<script>alert('GAGAL SIMPAN EXTEND: ".mysqli_error($conn)."');</script>";
     }
 }
 ?>
 
-<div class="card shadow-sm">
-    <div class="card-header bg-primary text-white">
-        <i class="bi bi-pencil-square"></i> 
-        <?= ($prop_lama && $prop_lama['status']=='Revisi') ? 'Form Revisi Proposal' : 'Form Pengajuan Proposal' ?>
-    </div>
-    <div class="card-body">
-        
-        <?php if ($prop_lama && $prop_lama['status'] == 'Revisi'): ?>
-            <div class="alert alert-warning">
-                <strong><i class="bi bi-exclamation-circle"></i> Status Revisi:</strong><br>
-                Silakan perbaiki judul atau dokumen sesuai masukan dosen, lalu kirim ulang form ini.
-            </div>
-        <?php elseif ($prop_lama && $prop_lama['status'] == 'Diajukan'): ?>
-            <div class="alert alert-info">Proposal Anda sedang direview. Harap tunggu.</div>
-        <?php endif; ?>
+<div class="row">
+    <div class="col-12 mb-4">
+        <?php if ($prop_lama): ?>
+            <div class="card shadow-sm border-0 border-start border-4 <?= ($prop_lama['status']=='Disetujui')?'border-success':(($prop_lama['status']=='Ditolak')?'border-danger':'border-warning') ?>">
+                <div class="card-body">
+                    <h5 class="fw-bold">Status Proposal TA</h5>
+                    <table class="table table-borderless table-sm mb-0 small">
+                        <tr><td width="130">Judul</td><td class="fw-bold">: <?= $prop_lama['judul'] ?></td></tr>
+                        <tr><td>Jenis</td><td>: <?= $prop_lama['jenis_ta'] ?></td></tr>
+                        
+                        <tr>
+                            <td>File Proposal</td>
+                            <td>: 
+                                <?php if(!empty($prop_lama['file_proposal'])): ?>
+                                    <a href="uploads/proposal/<?= $prop_lama['file_proposal'] ?>" target="_blank" class="text-decoration-none">
+                                        <i class="bi bi-file-earmark-pdf-fill text-danger"></i> Unduh PDF
+                                    </a>
+                                <?php else: ?>
+                                    <span class="text-muted">-</span>
+                                <?php endif; ?>
+                            </td>
+                        </tr>
 
-        <form method="POST" enctype="multipart/form-data">
-            <div class="mb-3">
-                <label class="form-label fw-bold">Judul Tugas Akhir</label>
-                <textarea name="judul" class="form-control" rows="4" required><?= ($prop_lama)?$prop_lama['judul']:'' ?></textarea>
+                        <tr>
+                            <td>Status Validasi</td>
+                            <td>: 
+                                <?php 
+                                if($prop_lama['status'] == 'Disetujui') echo '<span class="badge bg-success">DISETUJUI</span>';
+                                elseif($prop_lama['status'] == 'Ditolak') echo '<span class="badge bg-danger">DITOLAK</span>';
+                                else echo '<span class="badge bg-warning text-dark">MENUNGGU VERIFIKASI</span>';
+                                ?>
+                            </td>
+                        </tr>
+                    </table>
+                    <?php if(!empty($prop_lama['catatan_koor'])): ?>
+                        <div class="alert alert-danger mt-2 p-2 small">
+                            <i class="bi bi-chat-quote-fill me-1"></i> Catatan: "<?= $prop_lama['catatan_koor'] ?>"
+                        </div>
+                    <?php endif; ?>
+                </div>
             </div>
-            
-            <div class="mb-3">
-                <label class="form-label fw-bold">Jenis Tugas Akhir</label>
-                <select name="jenis" class="form-select">
-                    <option value="Rancang Bangun" <?= ($prop_lama && $prop_lama['jenis_ta']=='Rancang Bangun')?'selected':'' ?>>Rancang Bangun</option>
-                    <option value="Skripsi" <?= ($prop_lama && $prop_lama['jenis_ta']=='Skripsi')?'selected':'' ?>>Skripsi / Penelitian</option>
-                    <option value="Publikasi" <?= ($prop_lama && $prop_lama['jenis_ta']=='Publikasi')?'selected':'' ?>>Jalur Publikasi</option>
-                </select>
+        <?php else: ?>
+            <div class="alert alert-info">
+                <i class="bi bi-info-circle-fill me-2"></i> Anda belum mengajukan proposal Tugas Akhir.
             </div>
-            
-            <div class="mb-4">
-                <label class="form-label fw-bold">File Proposal (PDF)</label>
-                <input type="file" name="file" class="form-control" accept=".pdf">
-                <div class="form-text text-danger small">*Upload dinonaktifkan demo.</div>
+        <?php endif; ?>
+    </div>
+
+    <div class="col-12">
+        <?php if ($prop_lama && $prop_lama['status'] == 'Disetujui'): ?>
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-success text-white fw-bold">
+                    <i class="bi bi-hourglass-split me-2"></i> Pengajuan Perpanjangan Waktu (Extend)
+                </div>
+                <div class="card-body">
+                    <?php if ($ext_lama): ?>
+                        <div class="text-center py-4">
+                            <i class="bi bi-clock-history fs-1 text-muted"></i>
+                            <h5 class="mt-3">Status Pengajuan Extend</h5>
+                            <p class="mb-2">Anda telah mengajukan perpanjangan waktu selama <strong><?= $ext_lama['lama_perpanjangan'] ?> Bulan</strong>.</p>
+                            <h4>
+                                <?php 
+                                if($ext_lama['status_perpanjangan'] == 'Disetujui') echo '<span class="badge bg-success">DISETUJUI</span>';
+                                elseif($ext_lama['status_perpanjangan'] == 'Ditolak') echo '<span class="badge bg-danger">DITOLAK</span>';
+                                else echo '<span class="badge bg-warning text-dark">SEDANG DIPROSES</span>';
+                                ?>
+                            </h4>
+                        </div>
+                    <?php else: ?>
+                        <form method="POST">
+                            <div class="mb-3">
+                                <label class="fw-bold small">Durasi Perpanjangan</label>
+                                <select name="lama_perpanjangan" class="form-select" required>
+                                    <option value="1">1 Bulan</option>
+                                    <option value="3">3 Bulan</option>
+                                    <option value="6">6 Bulan</option>
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label class="fw-bold small">Alasan Perpanjangan</label>
+                                <textarea name="alasan" class="form-control" rows="3" required></textarea>
+                            </div>
+                            <div class="d-flex justify-content-end">
+                                <button type="submit" name="submit_extend" class="btn btn-success fw-bold">
+                                    <i class="bi bi-send-fill me-2"></i> Kirim
+                                </button>
+                            </div>
+                        </form>
+                    <?php endif; ?>
+                </div>
             </div>
-            
-            <div class="d-flex justify-content-between">
-                <a href="dashboard_mhs.php" class="btn btn-outline-secondary">Batal</a>
-                
-                <?php 
-                $disabled = '';
-                if ($prop_lama && ($prop_lama['status']=='Diajukan' || $prop_lama['status']=='Disetujui')) {
-                    $disabled = 'disabled';
-                }
-                ?>
-                <button type="submit" name="submit" class="btn btn-primary px-4" <?= $disabled ?>>
-                    <i class="bi bi-send"></i> Kirim Pengajuan
-                </button>
+
+        <?php elseif (!$prop_lama || $prop_lama['status'] == 'Revisi' || $prop_lama['status'] == 'Ditolak'): ?>
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-primary text-white fw-bold">
+                    <i class="bi bi-pencil-square me-2"></i> Form Proposal
+                </div>
+                <div class="card-body">
+                    <form method="POST" enctype="multipart/form-data">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Judul</label>
+                            <textarea name="judul" class="form-control" rows="3" required><?= ($prop_lama)?$prop_lama['judul']:'' ?></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Jenis TA</label>
+                            <select name="jenis" class="form-select" required>
+                                <option value="Rancang Bangun" <?= ($prop_lama && $prop_lama['jenis_ta']=='Rancang Bangun')?'selected':'' ?>>Rancang Bangun</option>
+                                <option value="Skripsi" <?= ($prop_lama && $prop_lama['jenis_ta']=='Skripsi')?'selected':'' ?>>Skripsi</option>
+                                <option value="Publikasi" <?= ($prop_lama && $prop_lama['jenis_ta']=='Publikasi')?'selected':'' ?>>Publikasi</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label fw-bold">File Proposal (PDF)</label>
+                            <input type="file" name="file_proposal" class="form-control" accept=".pdf">
+                            <div class="form-text small text-muted">
+                                *Format wajib PDF. <?= ($prop_lama) ? 'Biarkan kosong jika tidak ingin mengubah file saat revisi.' : '' ?>
+                            </div>
+                        </div>
+
+                        <button type="submit" name="submit_proposal" class="btn btn-primary w-100 fw-bold">Kirim</button>
+                    </form>
+                </div>
             </div>
-        </form>
+        <?php else: ?>
+            <div class="text-center py-5 bg-light rounded border">
+                <i class="bi bi-hourglass-top fs-1 text-primary"></i>
+                <h4 class="mt-3">Sedang Diverifikasi</h4>
+            </div>
+        <?php endif; ?>
     </div>
 </div>

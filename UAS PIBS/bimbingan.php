@@ -1,48 +1,111 @@
 <?php
-// LOGIKA SIMPAN LOGBOOK
-if (isset($_POST['tambah_log'])) {
-    $nidn   = $_POST['nidn'];
-    $topik  = $_POST['topik'];
+// Pastikan folder upload ada
+$uploadDir = 'uploads/bukti_bimbingan/';
+if (!file_exists($uploadDir)) {
+    mkdir($uploadDir, 0777, true);
+}
+
+// 1. AMBIL DATA PROPOSAL & PEMBIMBING
+// Kita ambil status proposal sekaligus data dosen pembimbingnya
+$q_cek = "SELECT p.status, p.nidn_pembimbing, d.nama as nama_dosen 
+          FROM proposal p 
+          LEFT JOIN dosen d ON p.nidn_pembimbing = d.nidn 
+          WHERE p.nim = '$nim'";
+$cek_prop = mysqli_query($conn, $q_cek);
+$data_prop = mysqli_fetch_assoc($cek_prop);
+
+$status_proposal = $data_prop['status'] ?? 'Belum Mengajukan';
+$nidn_pembimbing = $data_prop['nidn_pembimbing'] ?? '';
+$nama_pembimbing = $data_prop['nama_dosen'] ?? 'Belum Ditentukan';
+
+// Validasi: Harus disetujui DAN sudah ada pembimbingnya
+$is_valid = ($status_proposal == 'Disetujui' && !empty($nidn_pembimbing));
+
+
+// 2. LOGIKA SIMPAN LOGBOOK
+if (isset($_POST['tambah_log']) && $is_valid) {
+    // Ambil NIDN dari input hidden (bukan select lagi)
+    $nidn   = $_POST['nidn']; 
+    $topik  = mysqli_real_escape_string($conn, $_POST['topik']);
     $tgl    = date('Y-m-d');
     
-    $query = "INSERT INTO bimbingan (nim, nidn_pembimbing, tanggal, topik, status) 
-              VALUES ('$nim', '$nidn', '$tgl', '$topik', 'Menunggu')";
+    // Proses Upload Foto
+    $fotoName = null;
+    if (isset($_FILES['bukti_foto']) && $_FILES['bukti_foto']['error'] === UPLOAD_ERR_OK) {
+        $fileTmpPath = $_FILES['bukti_foto']['tmp_name'];
+        $fileName    = $_FILES['bukti_foto']['name'];
+        $fileType    = $_FILES['bukti_foto']['type'];
+        
+        $allowedTypes = ['image/jpeg', 'image/png', 'image/jpg'];
+        if (in_array($fileType, $allowedTypes)) {
+            $fileExtension = strtolower(pathinfo($fileName, PATHINFO_EXTENSION));
+            $newFileName = $nim . '_' . time() . '.' . $fileExtension;
+            $dest_path = $uploadDir . $newFileName;
+            
+            if(move_uploaded_file($fileTmpPath, $dest_path)) {
+                $fotoName = $newFileName;
+            }
+        } else {
+            echo "<script>alert('Format file tidak valid! Hanya JPG, JPEG, PNG.');</script>";
+        }
+    }
+
+    $query = "INSERT INTO bimbingan (nim, nidn_pembimbing, tanggal, topik, bukti_foto, status) 
+              VALUES ('$nim', '$nidn', '$tgl', '$topik', '$fotoName', 'Menunggu')";
     
     if(mysqli_query($conn, $query)){
-        // Redirect pakai JS agar tetap di halaman bimbingan
         echo "<script>alert('Logbook berhasil disimpan!'); window.location='dashboard_mhs.php?page=bimbingan';</script>";
+    } else {
+        echo "<script>alert('Gagal menyimpan: ".mysqli_error($conn)."');</script>";
     }
 }
 ?>
 
-<div class="card shadow-sm">
-    <div class="card-header bg-primary text-white">
-        <i class="bi bi-pencil-fill"></i> Isi Logbook Baru
+<?php if ($is_valid): ?>
+    <div class="card shadow-sm">
+        <div class="card-header bg-primary text-white">
+            <i class="bi bi-pencil-fill"></i> Isi Logbook Baru
+        </div>
+        <div class="card-body">
+            <form method="POST" enctype="multipart/form-data">
+                
+                <div class="mb-3">
+                    <label class="fw-bold small mb-1">Dosen Pembimbing</label>
+                    <input type="text" class="form-control bg-light" value="<?= $nama_pembimbing ?>" readonly>
+                    <input type="hidden" name="nidn" value="<?= $nidn_pembimbing ?>">
+                </div>
+                
+                <div class="mb-3">
+                    <label class="fw-bold small mb-1">Topik Bimbingan</label>
+                    <textarea name="topik" class="form-control" rows="3" required placeholder="Misal: Revisi Bab 1 tentang Latar Belakang..."></textarea>
+                </div>
+
+                <div class="mb-3">
+                    <label class="fw-bold small mb-1">Bukti Foto Bimbingan (Opsional)</label>
+                    <input type="file" name="bukti_foto" class="form-control" accept="image/jpeg, image/png, image/jpg">
+                    <div class="form-text text-muted">Format: JPG, PNG. Maks 2MB.</div>
+                </div>
+
+                <button type="submit" name="tambah_log" class="btn btn-primary w-100">
+                    <i class="bi bi-save"></i> Simpan Logbook
+                </button>
+            </form>
+        </div>
     </div>
-    <div class="card-body">
-        <form method="POST">
-            <div class="mb-3">
-                <label class="fw-bold small mb-1">Pilih Dosen Pembimbing</label>
-                <select name="nidn" class="form-select" required>
-                    <option value="">-- Pilih Dosen --</option>
-                    <?php
-                    $dosen = mysqli_query($conn, "SELECT * FROM dosen");
-                    while($d = mysqli_fetch_array($dosen)){
-                        echo "<option value='{$d['nidn']}'>{$d['nama']}</option>";
-                    }
-                    ?>
-                </select>
-            </div>
-            <div class="mb-3">
-                <label class="fw-bold small mb-1">Topik Bimbingan</label>
-                <textarea name="topik" class="form-control" rows="3" required placeholder="Misal: Revisi Bab 1 tentang Latar Belakang..."></textarea>
-            </div>
-            <button type="submit" name="tambah_log" class="btn btn-primary w-100">
-                <i class="bi bi-save"></i> Simpan Logbook
-            </button>
-        </form>
+
+<?php else: ?>
+    <div class="alert alert-warning border-warning shadow-sm d-flex align-items-center" role="alert">
+        <i class="bi bi-exclamation-triangle-fill fs-1 me-3 text-warning"></i>
+        <div>
+            <h5 class="alert-heading fw-bold">Akses Dibatasi</h5>
+            <p class="mb-0">
+                Anda belum dapat mengisi logbook bimbingan. <br>
+                Status Proposal: <strong><?= strtoupper($status_proposal) ?></strong>. <br>
+                Pastikan proposal sudah <strong>Disetujui</strong> dan <strong>Dosen Pembimbing</strong> telah ditentukan oleh Koordinator.
+            </p>
+        </div>
     </div>
-</div>
+<?php endif; ?>
 
 <div class="card shadow-sm mt-4">
     <div class="card-header bg-white fw-bold border-bottom">
@@ -56,7 +119,7 @@ if (isset($_POST['tambah_log'])) {
                         <th class="ps-3">No</th>
                         <th>Tanggal</th>
                         <th>Topik</th>
-                        <th>Catatan</th>
+                        <th>Bukti</th> <th>Catatan</th>
                         <th>Status</th>
                     </tr>
                 </thead>
@@ -64,15 +127,27 @@ if (isset($_POST['tambah_log'])) {
                     <?php
                     $log = mysqli_query($conn, "SELECT b.*, d.nama as nama_dosen FROM bimbingan b JOIN dosen d ON b.nidn_pembimbing = d.nidn WHERE b.nim='$nim' ORDER BY b.tanggal DESC");
                     $no = 1;
-                    while($row = mysqli_fetch_array($log)):
+                    if ($log && mysqli_num_rows($log) > 0) {
+                        while($row = mysqli_fetch_array($log)):
                     ?>
                     <tr>
                         <td class="ps-3"><?= $no++ ?></td>
-                        <td><?= $row['tanggal'] ?></td>
-                        <td><?= $row['topik'] ?></td>
+                        <td><?= date('d M Y', strtotime($row['tanggal'])) ?></td>
+                        <td><?= htmlspecialchars($row['topik']) ?></td>
+                        
+                        <td>
+                            <?php if(!empty($row['bukti_foto'])): ?>
+                                <a href="uploads/bukti_bimbingan/<?= $row['bukti_foto'] ?>" target="_blank" class="btn btn-sm btn-outline-info">
+                                    <i class="bi bi-image"></i> Lihat
+                                </a>
+                            <?php else: ?>
+                                <span class="text-muted">-</span>
+                            <?php endif; ?>
+                        </td>
+
                         <td class="text-danger fst-italic"><?= $row['catatan_dosen'] ?? '-' ?></td>
                         <td>
-                            <?php if($row['status'] == 'ACC'): ?>
+                            <?php if($row['status'] == 'ACC' || $row['status'] == 'Disetujui'): ?>
                                 <span class="badge bg-success">ACC</span>
                             <?php elseif($row['status'] == 'Revisi'): ?>
                                 <span class="badge bg-danger">Revisi</span>
@@ -81,10 +156,11 @@ if (isset($_POST['tambah_log'])) {
                             <?php endif; ?>
                         </td>
                     </tr>
-                    <?php endwhile; ?>
+                    <?php endwhile; 
+                    } ?>
                 </tbody>
             </table>
-            <?php if(mysqli_num_rows($log) == 0): ?>
+            <?php if(!$log || mysqli_num_rows($log) == 0): ?>
                 <div class="p-4 text-center text-muted">
                     <i class="bi bi-inbox fs-4 d-block mb-2"></i> Belum ada data bimbingan.
                 </div>

@@ -3,11 +3,17 @@
 if (!isset($_SESSION['role']) || $_SESSION['role'] != 'Koordinator') { exit("Akses Ditolak."); }
 
 // ==============================================================================
-// 1. AMBIL DATA DOSEN
+// 1. AMBIL DATA DOSEN (KHUSUS PENGUJI)
 // ==============================================================================
 $arr_dosen = [];
-$q_dosen = @mysqli_query($conn, "SELECT nidn, nama FROM dosen WHERE peran='Dosen'");
-if (!$q_dosen) { $q_dosen = mysqli_query($conn, "SELECT nidn, nama FROM dosen WHERE role='Dosen'"); }
+
+// PERBAIKAN: Filter berdasarkan role 'Penguji'
+$q_dosen = @mysqli_query($conn, "SELECT nidn, nama FROM dosen WHERE peran='Penguji'");
+if (!$q_dosen) { 
+    // Fallback jika nama kolom di database adalah 'role'
+    $q_dosen = mysqli_query($conn, "SELECT nidn, nama FROM dosen WHERE role='Penguji'"); 
+}
+
 if ($q_dosen) {
     while ($d = mysqli_fetch_assoc($q_dosen)) { $arr_dosen[] = $d; }
 }
@@ -24,6 +30,8 @@ if (isset($_POST['tetapkan_jadwal'])) {
     $q = "UPDATE sidang SET nidn_penguji='$penguji', tanggal_sidang='$tanggal', ruangan='$ruang', status_sidang='Dijadwalkan' WHERE id_sidang='$id_sidang'";
     if(mysqli_query($conn, $q)){
         echo "<script>alert('Jadwal berhasil ditetapkan!'); window.location='dashboard_dosen.php?page=sidang';</script>";
+    } else {
+        echo "<script>alert('Gagal update: ".mysqli_error($conn)."');</script>";
     }
 }
 
@@ -35,6 +43,8 @@ if (isset($_POST['simpan_nilai'])) {
     $nilai     = $_POST['nilai_akhir'];
     if ($nilai !== "") {
         $nilai = (int) $nilai;
+        // Jika nilai masuk, status otomatis jadi Selesai/Lulus/Tidak Lulus (Tergantung nilai)
+        // Di sini kita set 'Selesai' dulu atau biarkan dosen penguji yang memfinalisasi statusnya
         $q = "UPDATE sidang SET nilai_akhir='$nilai', status_sidang='Selesai' WHERE id_sidang='$id_sidang'";
         mysqli_query($conn, $q);
         echo "<script>window.location='dashboard_dosen.php?page=sidang';</script>";
@@ -46,14 +56,16 @@ if (isset($_POST['simpan_nilai'])) {
 // ==============================================================================
 $data_pending = [];
 $q_pending = mysqli_query($conn, "
-    SELECT s.*, m.nama, m.nim, p.judul 
+    SELECT s.*, m.nama, m.nim, p.judul, p.file_proposal as file_laporan 
     FROM sidang s
     JOIN proposal p ON s.id_proposal = p.id_proposal
     JOIN mahasiswa m ON p.nim = m.nim
     WHERE s.status_sidang = 'Menunggu Jadwal'
 ");
-while($row = mysqli_fetch_assoc($q_pending)){
-    $data_pending[] = $row;
+if($q_pending) {
+    while($row = mysqli_fetch_assoc($q_pending)){
+        $data_pending[] = $row;
+    }
 }
 ?>
 
@@ -85,7 +97,7 @@ while($row = mysqli_fetch_assoc($q_pending)){
                                     <td><?= substr($row['judul'], 0, 40) ?>...</td>
                                     <td>
                                         <?php if(!empty($row['file_laporan'])): ?>
-                                            <a href="<?= $row['file_laporan'] ?>" target="_blank" class="btn btn-sm btn-outline-primary rounded-pill px-3">
+                                            <a href="uploads/proposal/<?= $row['file_laporan'] ?>" target="_blank" class="btn btn-sm btn-outline-primary rounded-pill px-3">
                                                 <i class="bi bi-link-45deg"></i> Link
                                             </a>
                                         <?php else: ?>
@@ -138,7 +150,8 @@ while($row = mysqli_fetch_assoc($q_pending)){
                                 WHERE s.status_sidang != 'Menunggu Jadwal'
                                 ORDER BY s.tanggal_sidang DESC
                             ");
-                            while($row = mysqli_fetch_assoc($q_fixed)):
+                            if($q_fixed && mysqli_num_rows($q_fixed) > 0):
+                                while($row = mysqli_fetch_assoc($q_fixed)):
                             ?>
                             <tr>
                                 <td class="ps-3 fw-bold"><?= $row['nama'] ?></td>
@@ -157,7 +170,9 @@ while($row = mysqli_fetch_assoc($q_pending)){
                                     </form>
                                 </td>
                             </tr>
-                            <?php endwhile; ?>
+                            <?php endwhile; else: ?>
+                                <tr><td colspan="4" class="text-center py-4 text-muted">Belum ada jadwal sidang aktif.</td></tr>
+                            <?php endif; ?>
                         </tbody>
                     </table>
                 </div>
@@ -184,10 +199,14 @@ while($row = mysqli_fetch_assoc($q_pending)){
                     <div class="mb-2">
                         <label class="small fw-bold">Penguji</label>
                         <select name="penguji" class="form-select" required>
-                            <option value="">-- Pilih --</option>
-                            <?php foreach($arr_dosen as $d): ?>
-                                <option value="<?= $d['nidn'] ?>"><?= $d['nama'] ?></option>
-                            <?php endforeach; ?>
+                            <option value="">-- Pilih Dosen Penguji --</option>
+                            <?php if(empty($arr_dosen)): ?>
+                                <option disabled>Tidak ada data penguji</option>
+                            <?php else: ?>
+                                <?php foreach($arr_dosen as $d): ?>
+                                    <option value="<?= $d['nidn'] ?>"><?= $d['nama'] ?></option>
+                                <?php endforeach; ?>
+                            <?php endif; ?>
                         </select>
                     </div>
                     <div class="row mb-2">

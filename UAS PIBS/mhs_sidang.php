@@ -63,7 +63,7 @@ if (isset($_POST['daftar_sidang'])) {
                 <i class="bi bi-send-check-fill fs-1 text-success"></i>
                 <h4 class="mt-3 fw-bold">Pendaftaran Telah Diterima</h4>
                 <p class="text-muted mb-3">Status saat ini: <span class="badge bg-warning text-dark"><?= $status_saat_ini ?></span></p>
-                <a href="dashboard_mhs.php?page=jadwal_sidang" class="btn btn-outline-primary">Lihat Detail Jadwal</a>
+                <a href="dashboard_mhs.php?page=jadwal" class="btn btn-outline-primary">Lihat Detail Jadwal</a>
             </div>
 
         <?php elseif ($lolos_syarat): ?>

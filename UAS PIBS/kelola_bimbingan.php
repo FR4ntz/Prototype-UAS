@@ -1,5 +1,7 @@
 <?php
-// LOGIKA UPDATE RESPON DOSEN
+// ==============================================================================
+// 1. LOGIKA UPDATE RESPON DOSEN
+// ==============================================================================
 if (isset($_POST['update_respon'])) {
     $id_bim  = $_POST['id_bimbingan'];
     $catatan = mysqli_real_escape_string($conn, $_POST['catatan']);
@@ -8,98 +10,140 @@ if (isset($_POST['update_respon'])) {
     $query = "UPDATE bimbingan SET catatan_dosen='$catatan', status='$status' WHERE id_bimbingan='$id_bim'";
     
     if (mysqli_query($conn, $query)) {
-        // Redirect kembali ke halaman bimbingan di dalam dashboard
         echo "<script>alert('Respon berhasil disimpan!'); window.location='dashboard_dosen.php?page=bimbingan';</script>";
     }
 }
 ?>
 
 <div class="card shadow-sm mb-4">
-    <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
-        <span><i class="bi bi-people-fill me-2"></i> Daftar Logbook Mahasiswa</span>
-        <span class="badge bg-light text-primary">
-            Pending: <?= mysqli_num_rows(mysqli_query($conn, "SELECT * FROM bimbingan WHERE nidn_pembimbing='$nidn' AND status='Menunggu'")) ?>
-        </span>
+    <div class="card-header bg-primary text-white fw-bold">
+        <i class="bi bi-people-fill me-2"></i> Daftar Mahasiswa Bimbingan
     </div>
     <div class="card-body p-0">
-        <div class="table-responsive">
-            <table class="table table-striped table-hover mb-0 align-middle">
-                <thead class="table-light">
-                    <tr>
-                        <th class="ps-3">Mahasiswa</th>
-                        <th width="25%">Tanggal & Topik</th>
-                        <th>Status Saat Ini</th>
-                        <th width="35%">Respon Dosen</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php
-                    // Query: Hanya ambil bimbingan milik dosen yang sedang login ($nidn dari dashboard)
-                    // Urutkan: Yang 'Menunggu' paling atas, lalu berdasarkan tanggal terbaru
-                    $query = mysqli_query($conn, "SELECT b.*, m.nama as mhs_nama, m.nim 
-                                                  FROM bimbingan b 
-                                                  JOIN mahasiswa m ON b.nim = m.nim 
-                                                  WHERE b.nidn_pembimbing = '$nidn' 
-                                                  ORDER BY FIELD(b.status, 'Menunggu') DESC, b.tanggal DESC");
+        
+        <?php
+        // 1. AMBIL DATA MAHASISWA (DISTINCT / UNIK)
+        // Kita hanya mengambil daftar mahasiswa yang punya bimbingan dengan dosen ini
+        $q_mhs = mysqli_query($conn, "SELECT DISTINCT m.nim, m.nama 
+                                      FROM bimbingan b 
+                                      JOIN mahasiswa m ON b.nim = m.nim 
+                                      WHERE b.nidn_pembimbing = '$nidn'
+                                      ORDER BY m.nama ASC");
+
+        if(mysqli_num_rows($q_mhs) > 0):
+        ?>
+            <div class="accordion accordion-flush" id="accordionBimbingan">
+                
+                <?php 
+                $no = 1;
+                while($mhs = mysqli_fetch_array($q_mhs)): 
+                    $nim_mhs = $mhs['nim'];
                     
-                    if (mysqli_num_rows($query) > 0):
-                        while($row = mysqli_fetch_array($query)):
-                    ?>
-                    <tr>
-                        <td class="ps-3">
-                            <span class="fw-bold text-dark"><?= $row['mhs_nama'] ?></span><br>
-                            <small class="text-muted"><?= $row['nim'] ?></small>
-                        </td>
-                        <td>
-                            <div class="d-flex align-items-center mb-1">
-                                <i class="bi bi-calendar-event me-2 text-muted"></i> 
-                                <small class="fw-bold"><?= date('d M Y', strtotime($row['tanggal'])) ?></small>
-                            </div>
-                            <p class="mb-0 small text-secondary fst-italic border-start border-3 ps-2">
-                                "<?= $row['topik'] ?>"
-                            </p>
-                        </td>
-                        <td>
-                            <?php 
-                                $bg = 'secondary';
-                                if($row['status']=='Menunggu') $bg = 'warning text-dark';
-                                elseif($row['status']=='ACC') $bg = 'success';
-                                elseif($row['status']=='Revisi') $bg = 'danger';
-                                echo "<span class='badge bg-$bg'>{$row['status']}</span>";
-                            ?>
-                        </td>
-                        <td>
-                            <form method="POST" class="d-flex flex-column gap-2">
-                                <input type="hidden" name="id_bimbingan" value="<?= $row['id_bimbingan'] ?>">
-                                
-                                <textarea name="catatan" class="form-control form-control-sm" rows="2" placeholder="Tulis catatan revisi..." required><?= $row['catatan_dosen'] ?></textarea>
-                                
-                                <div class="d-flex gap-2">
-                                    <select name="status" class="form-select form-select-sm" style="width: 120px;">
-                                        <option value="Menunggu" <?= $row['status']=='Menunggu'?'selected':'' ?>>Menunggu</option>
-                                        <option value="Revisi" <?= $row['status']=='Revisi'?'selected':'' ?>>Revisi</option>
-                                        <option value="ACC" <?= $row['status']=='ACC'?'selected':'' ?>>ACC</option>
-                                    </select>
-                                    <button type="submit" name="update_respon" class="btn btn-primary btn-sm w-100">
-                                        <i class="bi bi-send-fill"></i> Simpan
-                                    </button>
+                    // Hitung jumlah bimbingan pending per mahasiswa untuk Badge
+                    $q_count = mysqli_query($conn, "SELECT COUNT(*) as total FROM bimbingan WHERE nim='$nim_mhs' AND nidn_pembimbing='$nidn' AND status='Menunggu'");
+                    $d_count = mysqli_fetch_assoc($q_count);
+                    $pending = $d_count['total'];
+                ?>
+                
+                <div class="accordion-item">
+                    <h2 class="accordion-header" id="heading<?= $nim_mhs ?>">
+                        <button class="accordion-button collapsed py-3" type="button" data-bs-toggle="collapse" data-bs-target="#collapse<?= $nim_mhs ?>">
+                            <div class="d-flex w-100 justify-content-between align-items-center pe-3">
+                                <div>
+                                    <span class="fw-bold text-dark"><?= $mhs['nama'] ?></span>
+                                    <span class="text-muted small ms-2">(<?= $nim_mhs ?>)</span>
                                 </div>
-                            </form>
-                        </td>
-                    </tr>
-                    <?php 
-                        endwhile; 
-                    else:
-                    ?>
-                        <tr>
-                            <td colspan="4" class="text-center py-5 text-muted">
-                                <i class="bi bi-inbox fs-1 d-block mb-2 opacity-50"></i>
-                                Belum ada data bimbingan masuk.
-                            </td>
-                        </tr>
-                    <?php endif; ?>
-                </tbody>
-            </table>
-        </div>
+                                <?php if($pending > 0): ?>
+                                    <span class="badge bg-danger rounded-pill"><?= $pending ?> Menunggu Respon</span>
+                                <?php else: ?>
+                                    <span class="badge bg-success rounded-pill opacity-75"><i class="bi bi-check"></i> Aman</span>
+                                <?php endif; ?>
+                            </div>
+                        </button>
+                    </h2>
+                    
+                    <div id="collapse<?= $nim_mhs ?>" class="accordion-collapse collapse" data-bs-parent="#accordionBimbingan">
+                        <div class="accordion-body bg-light p-3">
+                            
+                            <div class="card border-0 shadow-sm">
+                                <div class="table-responsive">
+                                    <table class="table table-bordered mb-0 align-middle small bg-white">
+                                        <thead class="table-secondary">
+                                            <tr>
+                                                <th width="20%">Tanggal</th>
+                                                <th>Topik & Bukti</th>
+                                                <th width="15%">Status</th>
+                                                <th width="35%">Respon Dosen</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <?php
+                                            // 2. AMBIL DETAIL BIMBINGAN PER MAHASISWA
+                                            $q_bim = mysqli_query($conn, "SELECT * FROM bimbingan 
+                                                                          WHERE nim='$nim_mhs' AND nidn_pembimbing='$nidn' 
+                                                                          ORDER BY tanggal DESC");
+                                            while($row = mysqli_fetch_array($q_bim)):
+                                            ?>
+                                            <tr>
+                                                <td>
+                                                    <i class="bi bi-calendar-event me-1 text-muted"></i> 
+                                                    <?= date('d M Y', strtotime($row['tanggal'])) ?>
+                                                </td>
+                                                <td>
+                                                    <div class="fw-bold mb-1">Topik:</div>
+                                                    <p class="mb-2 text-muted fst-italic">"<?= $row['topik'] ?>"</p>
+                                                    
+                                                    <?php if(!empty($row['bukti_foto'])): ?>
+                                                        <a href="uploads/bukti_bimbingan/<?= $row['bukti_foto'] ?>" target="_blank" class="btn btn-sm btn-outline-info py-0 px-2" style="font-size: 0.75rem;">
+                                                            <i class="bi bi-image me-1"></i> Lihat Bukti
+                                                        </a>
+                                                    <?php endif; ?>
+                                                </td>
+                                                <td class="text-center">
+                                                    <?php 
+                                                        $bg = 'secondary';
+                                                        if($row['status']=='Menunggu') $bg = 'warning text-dark';
+                                                        elseif($row['status']=='ACC' || $row['status']=='Disetujui') $bg = 'success';
+                                                        elseif($row['status']=='Revisi') $bg = 'danger';
+                                                        echo "<span class='badge bg-$bg w-100'>{$row['status']}</span>";
+                                                    ?>
+                                                </td>
+                                                <td class="bg-white">
+                                                    <form method="POST">
+                                                        <input type="hidden" name="id_bimbingan" value="<?= $row['id_bimbingan'] ?>">
+                                                        
+                                                        <textarea name="catatan" class="form-control form-control-sm mb-2" rows="2" placeholder="Catatan..."><?= $row['catatan_dosen'] ?></textarea>
+                                                        
+                                                        <div class="input-group input-group-sm">
+                                                            <select name="status" class="form-select">
+                                                                <option value="Menunggu" <?= $row['status']=='Menunggu'?'selected':'' ?>>Menunggu</option>
+                                                                <option value="Revisi" <?= $row['status']=='Revisi'?'selected':'' ?>>Revisi</option>
+                                                                <option value="ACC" <?= ($row['status']=='ACC' || $row['status']=='Disetujui')?'selected':'' ?>>ACC</option>
+                                                            </select>
+                                                            <button type="submit" name="update_respon" class="btn btn-primary">
+                                                                <i class="bi bi-send"></i>
+                                                            </button>
+                                                        </div>
+                                                    </form>
+                                                </td>
+                                            </tr>
+                                            <?php endwhile; ?>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            </div>
+                    </div>
+                </div>
+                <?php endwhile; ?>
+                
+            </div>
+        <?php else: ?>
+            <div class="text-center py-5 text-muted">
+                <i class="bi bi-people fs-1 opacity-25"></i>
+                <p class="mt-2">Belum ada mahasiswa yang melakukan bimbingan.</p>
+            </div>
+        <?php endif; ?>
+        
     </div>
 </div>

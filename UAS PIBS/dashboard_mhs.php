@@ -93,9 +93,6 @@ $page = isset($_GET['page']) ? $_GET['page'] : 'home';
                             <a class="nav-link <?= ($page=='ai')?'active':'' ?>" href="dashboard_mhs.php?page=ai">
                                 <i class="bi bi-stars me-2"></i> Konsultasi AI
                             </a>
-                            <a class="nav-link <?= ($page=='extend')?'active':'' ?>" href="dashboard_mhs.php?page=extend">
-                                <i class="bi bi-hourglass-split me-2"></i> Perpanjangan TA
-                            </a>
                             <a class="nav-link <?= ($page=='laporan')?'active':'' ?>" href="laporan_ta.php" target="_blank">
                                 <i class="bi bi-printer me-2"></i> Cetak Laporan
                             </a>

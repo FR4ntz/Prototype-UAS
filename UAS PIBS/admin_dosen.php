@@ -9,45 +9,46 @@ if (isset($_POST['simpan_dosen'])) {
     $nidn  = mysqli_real_escape_string($conn, $_POST['nidn']);
     $nama  = mysqli_real_escape_string($conn, $_POST['nama']);
     $peran = mysqli_real_escape_string($conn, $_POST['peran']);
-    $pass  = md5($_POST['password']); // Enkripsi MD5
+    $pass  = md5($_POST['password']); 
     
     // Cek NIDN Kembar
     $cek = mysqli_query($conn, "SELECT nidn FROM dosen WHERE nidn='$nidn'");
     if (mysqli_num_rows($cek) > 0) {
         echo "<script>alert('Gagal: NIDN sudah terdaftar!');</script>";
     } else {
-        // Coba insert pakai kolom 'peran'
-        $q_insert = "INSERT INTO dosen (nidn, nama, password, peran) VALUES ('$nidn', '$nama', '$pass', '$peran')";
+        // Karena kolom di database Anda bernama 'role', kita pakai query ini:
+        $q_insert = "INSERT INTO dosen (nidn, nama, password, role) VALUES ('$nidn', '$nama', '$pass', '$peran')";
         
-        // Jika gagal (mungkin nama kolomnya 'role'), coba insert pakai 'role'
-        if (!@mysqli_query($conn, $q_insert)) {
-             $q_insert_alt = "INSERT INTO dosen (nidn, nama, password, role) VALUES ('$nidn', '$nama', '$pass', '$peran')";
-             mysqli_query($conn, $q_insert_alt);
+        if (mysqli_query($conn, $q_insert)) {
+            echo "<script>alert('Berhasil menambah akun!'); window.location='dashboard_dosen.php?page=master_dosen';</script>";
+        } else {
+            echo "<script>alert('Error Database: ".mysqli_error($conn)."');</script>";
         }
-        
-        echo "<script>alert('Berhasil menambah dosen!'); window.location='dashboard_dosen.php?page=master_dosen';</script>";
     }
 }
 
 // ==============================================================================
-// 2. LOGIKA HAPUS DOSEN
+// 2. LOGIKA HAPUS DOSEN (PERBAIKAN UTAMA DI SINI)
 // ==============================================================================
 if (isset($_POST['hapus_dosen'])) {
     $nidn = mysqli_real_escape_string($conn, $_POST['nidn_hapus']);
     
-    // Cegah hapus akun sendiri
     if ($nidn == $_SESSION['username']) {
         echo "<script>alert('Tidak bisa menghapus akun sendiri!');</script>";
     } else {
-        mysqli_query($conn, "DELETE FROM dosen WHERE nidn='$nidn'");
-        echo "<script>alert('Data dosen dihapus.'); window.location='dashboard_dosen.php?page=master_dosen';</script>";
+        $q_del = mysqli_query($conn, "DELETE FROM dosen WHERE nidn='$nidn'");
+        if($q_del) {
+            echo "<script>alert('Data dosen dihapus.'); window.location='dashboard_dosen.php?page=master_dosen';</script>";
+        } else {
+            echo "<script>alert('Gagal hapus. Dosen ini mungkin sedang membimbing mahasiswa. Hapus data bimbingannya dulu.');</script>";
+        }
     }
 }
 ?>
 
 <div class="card shadow-sm border-0 mb-4">
     <div class="card-header bg-success text-white fw-bold py-3">
-        <i class="bi bi-person-plus-fill me-2"></i> Tambah Akun Dosen / Koordinator
+        <i class="bi bi-person-plus-fill me-2"></i> Tambah Akun Dosen / Staff
     </div>
     <div class="card-body">
         <form method="POST">
@@ -64,6 +65,7 @@ if (isset($_POST['hapus_dosen'])) {
                     <label class="small fw-bold mb-1">Peran</label>
                     <select name="peran" class="form-select" required>
                         <option value="Dosen">Dosen Pembimbing</option>
+                        <option value="Penguji">Dosen Penguji</option>
                         <option value="Koordinator">Koordinator TA</option>
                     </select>
                 </div>
@@ -98,17 +100,13 @@ if (isset($_POST['hapus_dosen'])) {
                 </thead>
                 <tbody>
                     <?php
-                    // Ambil data dosen (Handle error kolom peran/role)
+                    // Ambil data dosen (sesuaikan dengan nama kolom di DB Anda: 'role')
                     $q_dosen = mysqli_query($conn, "SELECT * FROM dosen ORDER BY nidn ASC");
-                    // Fallback jika error
-                    if (!$q_dosen) { 
-                        $q_dosen = mysqli_query($conn, "SELECT nidn, nama, password, role as peran FROM dosen ORDER BY nidn ASC"); 
-                    }
 
                     if ($q_dosen && mysqli_num_rows($q_dosen) > 0):
                         while($r = mysqli_fetch_array($q_dosen)):
-                            // Deteksi nama kolom dinamis
-                            $role_user = isset($r['peran']) ? $r['peran'] : (isset($r['role']) ? $r['role'] : '-');
+                            // Pastikan membaca kolom 'role'
+                            $role_user = $r['role']; 
                     ?>
                     <tr>
                         <td class="ps-4 fw-bold text-dark"><?= $r['nidn'] ?></td>
@@ -116,17 +114,21 @@ if (isset($_POST['hapus_dosen'])) {
                         <td class="text-center">
                             <?php if($role_user == 'Koordinator'): ?>
                                 <span class="badge bg-warning text-dark rounded-pill px-3">Koordinator</span>
+                            <?php elseif($role_user == 'Penguji'): ?>
+                                <span class="badge bg-danger rounded-pill px-3">Penguji</span>
                             <?php else: ?>
-                                <span class="badge bg-primary rounded-pill px-3">Dosen</span>
+                                <span class="badge bg-primary rounded-pill px-3">Pembimbing</span>
                             <?php endif; ?>
                         </td>
                         <td class="text-center">
                             <?php if($r['nidn'] != $_SESSION['username']): ?>
                                 <form method="POST" onsubmit="return confirm('Yakin hapus akun <?= $r['nama'] ?>?');">
                                     <input type="hidden" name="nidn_hapus" value="<?= $r['nidn'] ?>">
-                                    <button class="btn btn-danger btn-sm p-1 px-2" title="Hapus">
+                                    
+                                    <button type="submit" name="hapus_dosen" class="btn btn-danger btn-sm p-1 px-2" title="Hapus">
                                         <i class="bi bi-trash-fill"></i>
                                     </button>
+                                    
                                 </form>
                             <?php else: ?>
                                 <span class="badge bg-light text-muted border">Akun Anda</span>

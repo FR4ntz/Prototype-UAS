@@ -1,120 +1,90 @@
-<?php
-// Pastikan sesi ada
-if (!isset($_SESSION['nim'])) { exit; }
-$nim = $_SESSION['nim'];
-
-// Ambil Data Jadwal Sidang Mahasiswa yang Login
-// Menggunakan LEFT JOIN ke dosen agar jika penguji belum diset, tidak error
-$query = "SELECT s.*, p.judul, d.nama AS penguji 
-          FROM sidang s 
-          JOIN proposal p ON s.id_proposal = p.id_proposal 
-          LEFT JOIN dosen d ON s.nidn_penguji = d.nidn 
-          WHERE p.nim = '$nim'";
-
-$result = mysqli_query($conn, $query);
-$data = mysqli_fetch_assoc($result);
-?>
-
 <div class="card shadow-sm border-0">
     <div class="card-header bg-primary text-white fw-bold">
-        <i class="bi bi-calendar-check me-2"></i> Jadwal & Hasil Sidang Akhir
+        <i class="bi bi-calendar-week me-2"></i> Jadwal Sidang Anda
     </div>
-    <div class="card-body">
+    <div class="card-body text-center py-5">
+        <?php
+        // 1. QUERY DATABASE
+        // Mengambil data sidang mahasiswa yang sedang login ($nim diambil dari dashboard_mhs.php)
+        $q_jadwal = mysqli_query($conn, "SELECT s.*, d.nama as penguji, p.judul 
+                                         FROM sidang s
+                                         JOIN proposal p ON s.id_proposal = p.id_proposal
+                                         LEFT JOIN dosen d ON s.nidn_penguji = d.nidn
+                                         WHERE p.nim = '$nim'");
         
-        <?php if($data): ?>
-            <div class="alert alert-info d-flex align-items-center mb-4">
-                <i class="bi bi-info-circle-fill fs-3 me-3"></i>
-                <div>
-                    <strong>Status Sidang:</strong> 
-                    <span class="badge bg-warning text-dark ms-2"><?= $data['status_sidang'] ?></span>
-                </div>
-            </div>
+        // 2. CEK APAKAH ADA DATA SIDANG
+        if (mysqli_num_rows($q_jadwal) > 0) {
+            $row = mysqli_fetch_assoc($q_jadwal);
+            
+            // --- LOGIKA STATUS (YANG ANDA MINTA) ---
+            
+            // KONDISI 1: JIKA STATUS REVISI
+            if ($row['status_sidang'] == 'Revisi') {
+                echo "<div class='alert alert-warning border-warning shadow-sm d-inline-block text-start p-4'>";
+                echo "<h4 class='fw-bold text-warning'><i class='bi bi-exclamation-triangle-fill'></i> Status: REVISI</h4>";
+                echo "<p>Anda diminta melakukan revisi laporan. Silakan perbaiki dan hubungi dosen penguji.</p>";
+                echo "<hr>";
+                echo "<p class='mb-0 fw-bold'>Nilai Sementara: <span class='badge bg-warning text-dark fs-6'>" . $row['nilai_akhir'] . "</span></p>";
+                echo "</div>";
+                
+                // Opsional: Disini bisa ditambahkan tombol/link upload ulang jika fitur tersedia
+            } 
+            
+            // KONDISI 2: JIKA MENUNGGU JADWAL DARI KOORDINATOR
+            elseif ($row['status_sidang'] == 'Menunggu Jadwal') {
+                echo "<div class='py-4'>";
+                echo "<i class='bi bi-hourglass-split fs-1 text-muted'></i>";
+                echo "<h4 class='text-muted mt-3'>Menunggu Penjadwalan</h4>";
+                echo "<p class='text-secondary'>Koordinator belum menetapkan jadwal sidang untuk Anda.<br>Mohon cek secara berkala.</p>";
+                echo "</div>";
+            } 
+            
+            // KONDISI 3: JIKA SUDAH LULUS
+            elseif ($row['status_sidang'] == 'Lulus') {
+                echo "<div class='alert alert-success d-inline-block px-5 py-4 shadow-sm'>";
+                echo "<h1 class='display-1 mb-3'><i class='bi bi-trophy-fill text-success'></i></h1>";
+                echo "<h3 class='fw-bold'>SELAMAT! ANDA LULUS</h3>";
+                echo "<p class='lead mb-0'>Nilai Akhir: <strong class='fs-3'>{$row['nilai_akhir']}</strong></p>";
+                echo "</div>";
+            }
+            
+            // KONDISI 4: JIKA TIDAK LULUS
+            elseif ($row['status_sidang'] == 'Tidak Lulus') {
+                echo "<div class='alert alert-danger d-inline-block px-5 py-4 shadow-sm'>";
+                echo "<h1 class='display-1 mb-3'><i class='bi bi-x-circle-fill text-danger'></i></h1>";
+                echo "<h3 class='fw-bold'>TIDAK LULUS</h3>";
+                echo "<p>Silakan hubungi Dosen Pembimbing untuk arahan selanjutnya.</p>";
+                echo "<p class='lead mb-0'>Nilai Akhir: <strong>{$row['nilai_akhir']}</strong></p>";
+                echo "</div>";
+            }
 
-            <table class="table table-bordered align-middle">
-                <tr>
-                    <th width="30%" class="bg-light">Judul Proposal</th>
-                    <td><strong><?= $data['judul'] ?></strong></td>
-                </tr>
-                <tr>
-                    <th class="bg-light">Dosen Penguji</th>
-                    <td>
-                        <?php if($data['penguji']): ?>
-                            <?= $data['penguji'] ?>
-                        <?php else: ?>
-                            <span class="text-muted fst-italic">Sedang ditentukan Koordinator...</span>
-                        <?php endif; ?>
-                    </td>
-                </tr>
-                <tr>
-                    <th class="bg-light">Waktu Pelaksanaan</th>
-                    <td>
-                        <?php if($data['tanggal_sidang']): ?>
-                            <span class="text-primary fw-bold">
-                                <?= date('d F Y', strtotime($data['tanggal_sidang'])) ?>
-                            </span><br>
-                            Pukul <?= date('H:i', strtotime($data['tanggal_sidang'])) ?> WIB
-                        <?php else: ?>
-                            <span class="text-muted fst-italic">Menunggu Jadwal</span>
-                        <?php endif; ?>
-                    </td>
-                </tr>
-                <tr>
-                    <th class="bg-light">Ruangan</th>
-                    <td>
-                        <?php if($data['ruangan']): ?>
-                            <span class="badge bg-warning text-dark fs-6"><?= $data['ruangan'] ?></span>
-                        <?php else: ?>
-                            -
-                        <?php endif; ?>
-                    </td>
-                </tr>
-                <tr>
-                    <th class="bg-light">Hasil Sidang</th>
-                    <td>
-                        <?php if($data['nilai_akhir'] !== null): ?>
-                            <div class="d-flex align-items-center gap-3">
-                                <h1 class="m-0 fw-bold display-5"><?= $data['nilai_akhir'] ?></h1>
-                                
-                                <?php 
-                                // --- LOGIKA PERBAIKAN NILAI (SUPAYA 100 JADI LULUS) ---
-                                $nilai = (int) $data['nilai_akhir']; // Ubah ke Integer
-                                
-                                if($nilai >= 70) {
-                                    echo '<span class="badge bg-success rounded-pill px-3 py-2">LULUS</span>';
-                                } else {
-                                    echo '<span class="badge bg-danger rounded-pill px-3 py-2">TIDAK LULUS</span>';
-                                }
-                                ?>
-                            </div>
-                            <small class="text-muted mt-2 d-block">
-                                *Syarat kelulusan: Nilai minimal 70.
-                            </small>
-                        <?php else: ?>
-                            <span class="badge bg-secondary">Nilai Belum Keluar</span>
-                        <?php endif; ?>
-                    </td>
-                </tr>
-            </table>
+            // KONDISI 5: JIKA DIJADWALKAN (NORMAL / AKAN SIDANG)
+            else {
+                echo "<div class='border rounded p-4 d-inline-block shadow-sm bg-light'>";
+                echo "<h3 class='text-primary fw-bold mb-3'>Sidang Dijadwalkan!</h3>";
+                echo "<h5 class='mb-3'><i class='bi bi-calendar-event'></i> " . date('d F Y', strtotime($row['tanggal_sidang'])) . "</h5>";
+                echo "<h2 class='display-6 fw-bold mb-3'>" . date('H:i', strtotime($row['tanggal_sidang'])) . " WIB</h2>";
+                
+                echo "<div class='d-flex justify-content-center gap-3 mt-4'>";
+                echo "<div class='text-start border-end pe-3'>";
+                echo "<small class='text-muted d-block'>Ruangan</small>";
+                echo "<strong>" . ($row['ruangan'] ?? 'Online') . "</strong>";
+                echo "</div>";
+                echo "<div class='text-start'>";
+                echo "<small class='text-muted d-block'>Dosen Penguji</small>";
+                echo "<strong>" . ($row['penguji'] ?? '-') . "</strong>";
+                echo "</div>";
+                echo "</div>";
+                echo "</div>";
+            }
 
-            <div class="mt-4 p-3 bg-light border rounded small">
-                <strong>Catatan:</strong>
-                <ul class="mb-0 ps-3">
-                    <li>Harap hadir 30 menit sebelum jadwal yang ditentukan.</li>
-                    <li>Wajib mengenakan Jas Almamater.</li>
-                    <li>Bawa berkas laporan rangkap 3 (jika diminta penguji).</li>
-                </ul>
-            </div>
-
-        <?php else: ?>
-            <div class="text-center py-5">
-                <i class="bi bi-clipboard-x fs-1 text-muted opacity-50"></i>
-                <h5 class="text-muted mt-3">Belum Mendaftar Sidang</h5>
-                <p class="text-muted">Anda belum melakukan pendaftaran sidang.<br>Silakan cek menu <strong>Daftar Sidang Akhir</strong>.</p>
-                <a href="dashboard_mhs.php?page=daftar_sidang" class="btn btn-primary fw-bold">
-                    <i class="bi bi-pencil-square me-2"></i> Daftar Sekarang
-                </a>
-            </div>
-        <?php endif; ?>
-
+        } else {
+            // 3. JIKA BELUM DAFTAR SAMA SEKALI (DATA TIDAK DITEMUKAN)
+            echo "<img src='https://cdn-icons-png.flaticon.com/512/7486/7486744.png' width='100' class='mb-3 opacity-50'>";
+            echo "<h5 class='text-muted'>Belum Ada Data Sidang</h5>";
+            echo "<p class='small text-secondary'>Silakan ajukan pendaftaran sidang terlebih dahulu pada menu Daftar Sidang.</p>";
+            echo "<a href='dashboard_mhs.php?page=daftar_sidang' class='btn btn-primary btn-sm px-4 rounded-pill'>Daftar Sidang Sekarang</a>";
+        }
+        ?>
     </div>
 </div>
