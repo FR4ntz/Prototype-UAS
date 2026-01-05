@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Waktu pembuatan: 05 Jan 2026 pada 10.45
+-- Waktu pembuatan: 05 Jan 2026 pada 13.28
 -- Versi server: 10.4.32-MariaDB
 -- Versi PHP: 8.0.30
 
@@ -56,6 +56,50 @@ INSERT INTO `bimbingan` (`idBimbingan`, `Tanggal`, `Topik`, `Bukti_Foto`, `Statu
 -- --------------------------------------------------------
 
 --
+-- Struktur dari tabel `deadline`
+--
+
+CREATE TABLE `deadline` (
+  `id` int(11) NOT NULL,
+  `judul` varchar(50) DEFAULT NULL,
+  `tanggal` date DEFAULT NULL,
+  `kategori` varchar(20) DEFAULT NULL,
+  `warna_bg` varchar(20) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data untuk tabel `deadline`
+--
+
+INSERT INTO `deadline` (`id`, `judul`, `tanggal`, `kategori`, `warna_bg`) VALUES
+(1, 'Revisi', '2025-09-20', 'warning', '#fff3cd'),
+(2, 'Sidang 1', '2025-11-05', 'primary', '#ffffff'),
+(3, 'Sidang 2', '2025-12-20', 'primary', '#ffffff');
+
+-- --------------------------------------------------------
+
+--
+-- Struktur dari tabel `dokumen_publik`
+--
+
+CREATE TABLE `dokumen_publik` (
+  `id` int(11) NOT NULL,
+  `nama_doc` varchar(100) DEFAULT NULL,
+  `link_file` varchar(255) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data untuk tabel `dokumen_publik`
+--
+
+INSERT INTO `dokumen_publik` (`id`, `nama_doc`, `link_file`) VALUES
+(1, 'Template Proposal 2025', '#'),
+(2, 'Lembar Persetujuan', '#'),
+(3, 'Panduan Penulisan', '#');
+
+-- --------------------------------------------------------
+
+--
 -- Struktur dari tabel `dosen`
 --
 
@@ -76,6 +120,55 @@ INSERT INTO `dosen` (`NIDN`, `Nama`, `Role`, `Email`, `Password`) VALUES
 ('041003', 'Pak Cahyono', 'Dosen', NULL, '202cb962ac59075b964b07152d234b70'),
 ('DOSEN001', 'Ibu Pembimbing', 'Dosen', 'dosen@upj.ac.id', '202cb962ac59075b964b07152d234b70'),
 ('KOOR001', 'Bpk. Koordinator', 'Koordinator', 'koor@upj.ac.id', '202cb962ac59075b964b07152d234b70');
+
+-- --------------------------------------------------------
+
+--
+-- Struktur dari tabel `konfig_web`
+--
+
+CREATE TABLE `konfig_web` (
+  `id` int(11) NOT NULL,
+  `nama_web` varchar(50) DEFAULT NULL,
+  `slogan` varchar(100) DEFAULT NULL,
+  `alamat` text DEFAULT NULL,
+  `copyright` varchar(100) DEFAULT NULL,
+  `fb_link` varchar(255) DEFAULT NULL,
+  `ig_link` varchar(255) DEFAULT NULL,
+  `tw_link` varchar(255) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data untuk tabel `konfig_web`
+--
+
+INSERT INTO `konfig_web` (`id`, `nama_web`, `slogan`, `alamat`, `copyright`, `fb_link`, `ig_link`, `tw_link`) VALUES
+(1, 'SITA - UPJ', 'Sistem Informasi Tugas Akhir', 'Jln. Cendrawasih Raya Blok B7/P, Bintaro Jaya, Tangerang Selatan', '2025 Kelompok Sistem Informasi', '#', '#', '#');
+
+-- --------------------------------------------------------
+
+--
+-- Struktur dari tabel `konten_publik`
+--
+
+CREATE TABLE `konten_publik` (
+  `id` int(11) NOT NULL,
+  `judul` varchar(255) NOT NULL,
+  `slug` varchar(255) DEFAULT NULL,
+  `tanggal` date DEFAULT NULL,
+  `penulis` varchar(50) DEFAULT NULL,
+  `warna_badge` varchar(20) DEFAULT NULL,
+  `deskripsi` text DEFAULT NULL,
+  `gambar` varchar(255) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data untuk tabel `konten_publik`
+--
+
+INSERT INTO `konten_publik` (`id`, `judul`, `slug`, `tanggal`, `penulis`, `warna_badge`, `deskripsi`, `gambar`) VALUES
+(1, 'Alur Pendaftaran Tugas Akhir 2026', 'alur-pendaftaran-ta-2025', '2025-12-22', 'Admin', 'primary', 'Pendaftaran Tugas Akhir periode Genap 2025 telah dibuka. Mahasiswa dapat mengajukan topik melalui sistem SITA UPJ.', 'alur_ta.jpg'),
+(2, 'Tips Sukses Menghadapi Sidang Skripsi', 'tips-sukses-sidang', '2025-12-22', 'Koordinator TA', 'success', 'Sidang skripsi merupakan tahap akhir sebelum kelulusan. Persiapan dan pemahaman alur sangat menentukan hasil.', 'sidang.jpg');
 
 -- --------------------------------------------------------
 
@@ -104,6 +197,29 @@ INSERT INTO `mahasiswa` (`NIM`, `Nama`, `Total_SKS`, `Total_JSDP`, `Email`, `Pas
 -- --------------------------------------------------------
 
 --
+-- Struktur dari tabel `menu_publik`
+--
+
+CREATE TABLE `menu_publik` (
+  `id` int(11) NOT NULL,
+  `nama_menu` varchar(50) DEFAULT NULL,
+  `link` varchar(255) DEFAULT NULL,
+  `icon` varchar(50) DEFAULT NULL,
+  `urutan` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data untuk tabel `menu_publik`
+--
+
+INSERT INTO `menu_publik` (`id`, `nama_menu`, `link`, `icon`, `urutan`) VALUES
+(1, 'Dashboard Publik', 'index.php', 'bi-speedometer2', 1),
+(2, 'Tentang Aplikasi', '#about', 'bi-info-circle', 2),
+(3, 'Website UPJ', 'https://upj.ac.id', 'bi-globe', 3);
+
+-- --------------------------------------------------------
+
+--
 -- Struktur dari tabel `notifikasi`
 --
 
@@ -115,6 +231,24 @@ CREATE TABLE `notifikasi` (
   `tanggal` date DEFAULT NULL,
   `is_read` tinyint(1) DEFAULT 0
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Struktur dari tabel `periode_aktif`
+--
+
+CREATE TABLE `periode_aktif` (
+  `id` int(11) NOT NULL,
+  `nama_periode` varchar(50) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data untuk tabel `periode_aktif`
+--
+
+INSERT INTO `periode_aktif` (`id`, `nama_periode`) VALUES
+(1, 'Semester Gasal 2025');
 
 -- --------------------------------------------------------
 
@@ -221,10 +355,34 @@ ALTER TABLE `bimbingan`
   ADD KEY `fk_bimb_prop` (`idProposal`);
 
 --
+-- Indeks untuk tabel `deadline`
+--
+ALTER TABLE `deadline`
+  ADD PRIMARY KEY (`id`);
+
+--
+-- Indeks untuk tabel `dokumen_publik`
+--
+ALTER TABLE `dokumen_publik`
+  ADD PRIMARY KEY (`id`);
+
+--
 -- Indeks untuk tabel `dosen`
 --
 ALTER TABLE `dosen`
   ADD PRIMARY KEY (`NIDN`);
+
+--
+-- Indeks untuk tabel `konfig_web`
+--
+ALTER TABLE `konfig_web`
+  ADD PRIMARY KEY (`id`);
+
+--
+-- Indeks untuk tabel `konten_publik`
+--
+ALTER TABLE `konten_publik`
+  ADD PRIMARY KEY (`id`);
 
 --
 -- Indeks untuk tabel `mahasiswa`
@@ -233,10 +391,22 @@ ALTER TABLE `mahasiswa`
   ADD PRIMARY KEY (`NIM`);
 
 --
+-- Indeks untuk tabel `menu_publik`
+--
+ALTER TABLE `menu_publik`
+  ADD PRIMARY KEY (`id`);
+
+--
 -- Indeks untuk tabel `notifikasi`
 --
 ALTER TABLE `notifikasi`
   ADD PRIMARY KEY (`id_notif`);
+
+--
+-- Indeks untuk tabel `periode_aktif`
+--
+ALTER TABLE `periode_aktif`
+  ADD PRIMARY KEY (`id`);
 
 --
 -- Indeks untuk tabel `perpanjangan`
@@ -272,10 +442,46 @@ ALTER TABLE `sidang`
 --
 
 --
+-- AUTO_INCREMENT untuk tabel `deadline`
+--
+ALTER TABLE `deadline`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+
+--
+-- AUTO_INCREMENT untuk tabel `dokumen_publik`
+--
+ALTER TABLE `dokumen_publik`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+
+--
+-- AUTO_INCREMENT untuk tabel `konfig_web`
+--
+ALTER TABLE `konfig_web`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+
+--
+-- AUTO_INCREMENT untuk tabel `konten_publik`
+--
+ALTER TABLE `konten_publik`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+
+--
+-- AUTO_INCREMENT untuk tabel `menu_publik`
+--
+ALTER TABLE `menu_publik`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+
+--
 -- AUTO_INCREMENT untuk tabel `notifikasi`
 --
 ALTER TABLE `notifikasi`
   MODIFY `id_notif` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT untuk tabel `periode_aktif`
+--
+ALTER TABLE `periode_aktif`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
 
 --
 -- AUTO_INCREMENT untuk tabel `perpanjangan`
