@@ -6,17 +6,19 @@ if (!file_exists($uploadDir)) {
 }
 
 // 1. AMBIL DATA PROPOSAL & PEMBIMBING
-// Kita ambil status proposal sekaligus data dosen pembimbingnya
-$q_cek = "SELECT p.status, p.nidn_pembimbing, d.nama as nama_dosen 
-          FROM proposal p 
-          LEFT JOIN dosen d ON p.nidn_pembimbing = d.nidn 
-          WHERE p.nim = '$nim'";
+// Tabel: Proposal (P), Dosen (D)
+// Kolom: status_pengajuan, NIDN_Pembimbing, Nama, NIM
+$q_cek = "SELECT p.status_pengajuan, p.NIDN_Pembimbing, d.Nama as nama_dosen, p.idProposal 
+          FROM Proposal p 
+          LEFT JOIN Dosen d ON p.NIDN_Pembimbing = d.NIDN 
+          WHERE p.NIM = '$nim'";
 $cek_prop = mysqli_query($conn, $q_cek);
 $data_prop = mysqli_fetch_assoc($cek_prop);
 
-$status_proposal = $data_prop['status'] ?? 'Belum Mengajukan';
-$nidn_pembimbing = $data_prop['nidn_pembimbing'] ?? '';
+$status_proposal = $data_prop['status_pengajuan'] ?? 'Belum Mengajukan';
+$nidn_pembimbing = $data_prop['NIDN_Pembimbing'] ?? '';
 $nama_pembimbing = $data_prop['nama_dosen'] ?? 'Belum Ditentukan';
+$id_proposal_aktif = $data_prop['idProposal'] ?? ''; // Penting untuk insert bimbingan
 
 // Validasi: Harus disetujui DAN sudah ada pembimbingnya
 $is_valid = ($status_proposal == 'Disetujui' && !empty($nidn_pembimbing));
@@ -24,10 +26,10 @@ $is_valid = ($status_proposal == 'Disetujui' && !empty($nidn_pembimbing));
 
 // 2. LOGIKA SIMPAN LOGBOOK
 if (isset($_POST['tambah_log']) && $is_valid) {
-    // Ambil NIDN dari input hidden (bukan select lagi)
+    // Ambil NIDN dari input hidden
     $nidn   = $_POST['nidn']; 
     $topik  = mysqli_real_escape_string($conn, $_POST['topik']);
-    $tgl    = date('Y-m-d');
+    $tgl    = date('Y-m-d H:i:s'); // Format DATETIME
     
     // Proses Upload Foto
     $fotoName = null;
@@ -50,8 +52,13 @@ if (isset($_POST['tambah_log']) && $is_valid) {
         }
     }
 
-    $query = "INSERT INTO bimbingan (nim, nidn_pembimbing, tanggal, topik, bukti_foto, status) 
-              VALUES ('$nim', '$nidn', '$tgl', '$topik', '$fotoName', 'Menunggu')";
+    // GENERATE ID BIMBINGAN (BIMB-TIMESTAMP)
+    $id_bimb = "BIMB-" . time();
+
+    // Query Insert (Sesuaikan Nama Kolom Baru)
+    // Kolom: idBimbingan, NIM, NIDN, idProposal, Tanggal, Topik, Bukti_Foto, Status
+    $query = "INSERT INTO Bimbingan (idBimbingan, NIM, NIDN, idProposal, Tanggal, Topik, Bukti_Foto, Status) 
+              VALUES ('$id_bimb', '$nim', '$nidn', '$id_proposal_aktif', '$tgl', '$topik', '$fotoName', 'Menunggu')";
     
     if(mysqli_query($conn, $query)){
         echo "<script>alert('Logbook berhasil disimpan!'); window.location='dashboard_mhs.php?page=bimbingan';</script>";
@@ -125,19 +132,25 @@ if (isset($_POST['tambah_log']) && $is_valid) {
                 </thead>
                 <tbody>
                     <?php
-                    $log = mysqli_query($conn, "SELECT b.*, d.nama as nama_dosen FROM bimbingan b JOIN dosen d ON b.nidn_pembimbing = d.nidn WHERE b.nim='$nim' ORDER BY b.tanggal DESC");
+                    // Ambil Data Bimbingan (Join Dosen)
+                    // Kolom: NIDN (bukan nidn_pembimbing), Tanggal (PascalCase), Topik, Bukti_Foto
+                    $log = mysqli_query($conn, "SELECT b.*, d.Nama as nama_dosen 
+                                                FROM Bimbingan b 
+                                                JOIN Dosen d ON b.NIDN = d.NIDN 
+                                                WHERE b.NIM='$nim' 
+                                                ORDER BY b.Tanggal DESC");
                     $no = 1;
                     if ($log && mysqli_num_rows($log) > 0) {
                         while($row = mysqli_fetch_array($log)):
                     ?>
                     <tr>
                         <td class="ps-3"><?= $no++ ?></td>
-                        <td><?= date('d M Y', strtotime($row['tanggal'])) ?></td>
-                        <td><?= htmlspecialchars($row['topik']) ?></td>
+                        <td><?= date('d M Y', strtotime($row['Tanggal'])) ?></td>
+                        <td><?= htmlspecialchars($row['Topik']) ?></td>
                         
                         <td>
-                            <?php if(!empty($row['bukti_foto'])): ?>
-                                <a href="uploads/bukti_bimbingan/<?= $row['bukti_foto'] ?>" target="_blank" class="btn btn-sm btn-outline-info">
+                            <?php if(!empty($row['Bukti_Foto'])): ?>
+                                <a href="uploads/bukti_bimbingan/<?= $row['Bukti_Foto'] ?>" target="_blank" class="btn btn-sm btn-outline-info">
                                     <i class="bi bi-image"></i> Lihat
                                 </a>
                             <?php else: ?>
@@ -145,11 +158,11 @@ if (isset($_POST['tambah_log']) && $is_valid) {
                             <?php endif; ?>
                         </td>
 
-                        <td class="text-danger fst-italic"><?= $row['catatan_dosen'] ?? '-' ?></td>
+                        <td class="text-danger fst-italic"><?= $row['Catatan_Dosen'] ?? '-' ?></td>
                         <td>
-                            <?php if($row['status'] == 'ACC' || $row['status'] == 'Disetujui'): ?>
+                            <?php if($row['Status'] == 'ACC' || $row['Status'] == 'Disetujui'): ?>
                                 <span class="badge bg-success">ACC</span>
-                            <?php elseif($row['status'] == 'Revisi'): ?>
+                            <?php elseif($row['Status'] == 'Revisi'): ?>
                                 <span class="badge bg-danger">Revisi</span>
                             <?php else: ?>
                                 <span class="badge bg-secondary">Menunggu</span>

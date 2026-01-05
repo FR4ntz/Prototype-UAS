@@ -1,15 +1,14 @@
 <?php
 // Pastikan NIDN tersedia dari session
-$nidn = $_SESSION['username']; // Pastikan login sebagai Dosen
+$nidn = $_SESSION['username']; // Login sebagai Dosen
 
 // TANGKAP DATA MAHASISWA YANG DIPILIH
-// Menggunakan isset untuk mencegah error jika parameter kosong
 $selected_nim = isset($_GET['nim_mhs']) ? mysqli_real_escape_string($conn, $_GET['nim_mhs']) : '';
 $selected_mhs = null;
 
-// Jika ada NIM dipilih, ambil data mahasiswanya
+// Jika ada NIM dipilih, ambil data mahasiswanya (Tabel: Mahasiswa, Kolom: NIM)
 if ($selected_nim) {
-    $q_mhs = mysqli_query($conn, "SELECT * FROM mahasiswa WHERE nim='$selected_nim'");
+    $q_mhs = mysqli_query($conn, "SELECT * FROM Mahasiswa WHERE NIM='$selected_nim'");
     if ($q_mhs && mysqli_num_rows($q_mhs) > 0) {
         $selected_mhs = mysqli_fetch_assoc($q_mhs);
     }
@@ -21,8 +20,8 @@ if (isset($_POST['kirim_pesan_dosen'])) {
     $tgl = date('Y-m-d H:i:s');
     $nim_tujuan = mysqli_real_escape_string($conn, $_POST['nim_tujuan']);
     
-    // PERBAIKAN: Menggunakan kolom 'isi_pesan' dan 'waktu' sesuai screenshot Anda
-    $query = "INSERT INTO pesan (pengirim, penerima, isi_pesan, waktu) VALUES ('$nidn', '$nim_tujuan', '$isi', '$tgl')";
+    // Tabel: Pesan (Huruf Besar)
+    $query = "INSERT INTO Pesan (pengirim, penerima, isi_pesan, waktu) VALUES ('$nidn', '$nim_tujuan', '$isi', '$tgl')";
     
     if(mysqli_query($conn, $query)){
         echo "<script>window.location='dashboard_dosen.php?page=chat&nim_mhs=$nim_tujuan';</script>";
@@ -40,30 +39,24 @@ if (isset($_POST['kirim_pesan_dosen'])) {
             </div>
             <div class="list-group list-group-flush" style="max-height: 550px; overflow-y: auto;">
                 <?php
-                // QUERY LIST MAHASISWA (Diperbaiki agar tidak error jika kolom kosong)
-                // Logika: Ambil mahasiswa yang ada di chat history ATAU yang dibimbing oleh dosen ini
+                // QUERY LIST MAHASISWA 
+                // 1. Ambil Mahasiswa dari Riwayat Chat (Tabel: Pesan)
+                // 2. UNION
+                // 3. Ambil Mahasiswa Bimbingan yang sudah Disetujui (Tabel: Proposal)
                 
-                // Cek dulu apakah kolom nidn_pembimbing sudah ada (untuk error handling)
-                $check_col = mysqli_query($conn, "SHOW COLUMNS FROM proposal LIKE 'nidn_pembimbing'");
-                $has_pembimbing = mysqli_num_rows($check_col) > 0;
-
                 $sql_list = "
-                    SELECT DISTINCT m.nim, m.nama 
-                    FROM pesan ps
-                    JOIN mahasiswa m ON (ps.pengirim = m.nim OR ps.penerima = m.nim)
-                    WHERE (ps.penerima = '$nidn' OR ps.pengirim = '$nidn') AND m.nim != '$nidn'
-                ";
-
-                // Hanya gabungkan dengan proposal jika kolomnya sudah dibuat
-                if ($has_pembimbing) {
-                    $sql_list .= "
+                    SELECT DISTINCT m.NIM, m.Nama 
+                    FROM Pesan ps
+                    JOIN Mahasiswa m ON (ps.pengirim = m.NIM OR ps.penerima = m.NIM)
+                    WHERE (ps.penerima = '$nidn' OR ps.pengirim = '$nidn') AND m.NIM != '$nidn'
+                    
                     UNION
-                    SELECT DISTINCT m.nim, m.nama 
-                    FROM proposal p 
-                    JOIN mahasiswa m ON p.nim = m.nim 
-                    WHERE p.nidn_pembimbing = '$nidn' AND p.status = 'Disetujui'
-                    ";
-                }
+                    
+                    SELECT DISTINCT m.NIM, m.Nama 
+                    FROM Proposal p 
+                    JOIN Mahasiswa m ON p.NIM = m.NIM 
+                    WHERE p.NIDN_Pembimbing = '$nidn' AND p.status_pengajuan = 'Disetujui'
+                ";
 
                 $q_list = mysqli_query($conn, $sql_list);
                 
@@ -71,13 +64,13 @@ if (isset($_POST['kirim_pesan_dosen'])) {
                     echo '<div class="alert alert-danger m-2 small">Error SQL: '.mysqli_error($conn).'</div>';
                 } elseif (mysqli_num_rows($q_list) > 0) {
                     while ($m = mysqli_fetch_assoc($q_list)) {
-                        $isActive = ($m['nim'] == $selected_nim) ? 'active' : '';
-                        $bgClass  = ($m['nim'] == $selected_nim) ? 'bg-primary text-white border-primary' : 'list-group-item-action';
+                        $isActive = ($m['NIM'] == $selected_nim) ? 'active' : '';
+                        $bgClass  = ($m['NIM'] == $selected_nim) ? 'bg-primary text-white border-primary' : 'list-group-item-action';
                         
-                        echo "<a href='dashboard_dosen.php?page=chat&nim_mhs={$m['nim']}' class='list-group-item $bgClass d-flex justify-content-between align-items-center'>";
+                        echo "<a href='dashboard_dosen.php?page=chat&nim_mhs={$m['NIM']}' class='list-group-item $bgClass d-flex justify-content-between align-items-center'>";
                         echo "<div>";
-                        echo "<div class='fw-bold mb-0'>{$m['nama']}</div>";
-                        echo "<small class='" . ($isActive ? 'text-white-50' : 'text-muted') . "'>{$m['nim']}</small>";
+                        echo "<div class='fw-bold mb-0'>{$m['Nama']}</div>";
+                        echo "<small class='" . ($isActive ? 'text-white-50' : 'text-muted') . "'>{$m['NIM']}</small>";
                         echo "</div>";
                         echo "<i class='bi bi-chevron-right " . ($isActive ? 'text-white' : 'text-muted') . "'></i>";
                         echo "</a>";
@@ -98,22 +91,21 @@ if (isset($_POST['kirim_pesan_dosen'])) {
                         <i class="bi bi-person-fill fs-5"></i>
                     </div>
                     <div>
-                        <h6 class="m-0 fw-bold"><?= $selected_mhs['nama'] ?></h6>
-                        <small style="opacity: 0.9;">Mahasiswa Bimbingan • NIM: <?= $selected_mhs['nim'] ?></small>
+                        <h6 class="m-0 fw-bold"><?= $selected_mhs['Nama'] ?></h6>
+                        <small style="opacity: 0.9;">Mahasiswa Bimbingan • NIM: <?= $selected_mhs['NIM'] ?></small>
                     </div>
                 </div>
 
                 <div class="card-body bg-light chat-box" id="chatContainer" style="overflow-y: auto; flex: 1;">
                     <?php
-                    // PERBAIKAN: Menggunakan kolom 'waktu' untuk sorting
-                    $q_chat = mysqli_query($conn, "SELECT * FROM pesan 
+                    // Ambil Chat (Tabel: Pesan)
+                    $q_chat = mysqli_query($conn, "SELECT * FROM Pesan 
                                                    WHERE (pengirim='$nidn' AND penerima='$selected_nim') 
                                                    OR (pengirim='$selected_nim' AND penerima='$nidn') 
                                                    ORDER BY waktu ASC");
                     
                     if ($q_chat && mysqli_num_rows($q_chat) > 0) {
                         while ($chat = mysqli_fetch_assoc($q_chat)) {
-                            // PERBAIKAN: Menggunakan kolom 'waktu' dan 'isi_pesan'
                             $jam = date('H:i', strtotime($chat['waktu']));
                             $isi = nl2br(htmlspecialchars($chat['isi_pesan']));
                             

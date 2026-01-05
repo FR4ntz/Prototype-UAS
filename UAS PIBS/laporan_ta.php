@@ -8,8 +8,12 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] != 'mahasiswa') {
 }
 
 $nim = $_SESSION['nim'];
-$mhs = mysqli_fetch_assoc(mysqli_query($conn, "SELECT * FROM mahasiswa WHERE nim='$nim'"));
-$prop = mysqli_fetch_assoc(mysqli_query($conn, "SELECT * FROM proposal WHERE nim='$nim'"));
+
+// Ambil Data Mahasiswa (Tabel Mahasiswa)
+$mhs = mysqli_fetch_assoc(mysqli_query($conn, "SELECT * FROM Mahasiswa WHERE NIM='$nim'"));
+
+// Ambil Data Proposal (Tabel Proposal)
+$prop = mysqli_fetch_assoc(mysqli_query($conn, "SELECT * FROM Proposal WHERE NIM='$nim'"));
 ?>
 
 <!DOCTYPE html>
@@ -50,17 +54,17 @@ $prop = mysqli_fetch_assoc(mysqli_query($conn, "SELECT * FROM proposal WHERE nim
         <tr>
             <td width="150">Nama Mahasiswa</td>
             <td width="10">:</td>
-            <td class="fw-bold"><?= $mhs['nama'] ?></td>
+            <td class="fw-bold"><?= $mhs['Nama'] ?></td>
         </tr>
         <tr>
             <td>NIM</td>
             <td>:</td>
-            <td><?= $mhs['nim'] ?></td>
+            <td><?= $mhs['NIM'] ?></td>
         </tr>
         <tr>
             <td>Judul TA</td>
             <td>:</td>
-            <td><?= $prop['judul'] ?? '-' ?></td>
+            <td><?= $prop['Judul'] ?? '-' ?></td>
         </tr>
     </table>
 
@@ -75,27 +79,32 @@ $prop = mysqli_fetch_assoc(mysqli_query($conn, "SELECT * FROM proposal WHERE nim
         </thead>
         <tbody>
             <?php
-            $log = mysqli_query($conn, "SELECT * FROM bimbingan WHERE nim='$nim' ORDER BY tanggal ASC");
+            // Ambil Riwayat Bimbingan (Tabel Bimbingan)
+            // Kolom: NIM, Tanggal, Topik, Status
+            $log = mysqli_query($conn, "SELECT * FROM Bimbingan WHERE NIM='$nim' ORDER BY Tanggal ASC");
             $no = 1;
             while($r = mysqli_fetch_array($log)):
             ?>
             <tr>
                 <td><?= $no++ ?></td>
-                <td><?= date('d/m/Y', strtotime($r['tanggal'])) ?></td>
+                <td><?= date('d/m/Y', strtotime($r['Tanggal'])) ?></td>
                 <td class="text-start ps-3">
-                    <?= $r['topik'] ?><br>
-                    <small class="text-muted fst-italic">Status: <?= $r['status'] ?></small>
+                    <?= $r['Topik'] ?><br>
+                    <small class="text-muted fst-italic">Status: <?= $r['Status'] ?></small>
                 </td>
                 <td>
-                    <?php if($r['status'] == 'ACC'): ?>
-                        <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/e/e4/Infobox_info_icon.svg/1200px-Infobox_info_icon.svg.png" width="20" style="opacity:0.5"> <br>
-                        <small>(Digital Sign)</small>
+                    <?php if($r['Status'] == 'ACC' || $r['Status'] == 'Disetujui'): ?>
+                        <span style="font-family: 'Brush Script MT', cursive; font-size: 1.2rem;">Acc Dosen</span><br>
+                        <small style="font-size: 0.7rem;">(Digital Sign)</small>
                     <?php endif; ?>
                 </td>
             </tr>
             <?php endwhile; ?>
 
-            <?php for($i=0; $i<(10-mysqli_num_rows($log)); $i++): ?>
+            <?php 
+            // Tambahkan baris kosong jika data sedikit agar tabel terlihat penuh
+            for($i=0; $i<(10-mysqli_num_rows($log)); $i++): 
+            ?>
             <tr>
                 <td style="height: 40px;"></td>
                 <td></td>

@@ -3,27 +3,36 @@ session_start();
 include 'koneksi.php';
 
 // 1. CEK KEAMANAN AKSES
-if (!isset($_SESSION['role']) || $_SESSION['role'] != 'mahasiswa') { 
+// Menggunakan strtolower() agar 'Mahasiswa' atau 'mahasiswa' tetap terbaca benar
+if (!isset($_SESSION['role']) || strtolower($_SESSION['role']) != 'mahasiswa') { 
     header("Location: index.php"); 
     exit; 
 }
 
-$nim = $_SESSION['nim'];
+// Ambil NIM (Support 'username' atau 'nim' dari session login)
+$nim = isset($_SESSION['username']) ? $_SESSION['username'] : (isset($_SESSION['nim']) ? $_SESSION['nim'] : '');
+$nama_user = isset($_SESSION['user']) ? $_SESSION['user'] : 'Mahasiswa';
 
-// 2. DATA GLOBAL (Dipakai di Sidebar & Header)
-$mhs = mysqli_fetch_assoc(mysqli_query($conn, "SELECT * FROM mahasiswa WHERE nim='$nim'"));
-$prop = mysqli_fetch_assoc(mysqli_query($conn, "SELECT * FROM proposal WHERE nim='$nim'"));
+// 2. DATA GLOBAL
+// Menggunakan @ untuk mencegah error jika tabel kosong/salah nama
+$mhs = @mysqli_fetch_assoc(mysqli_query($conn, "SELECT * FROM mahasiswa WHERE nim='$nim'"));
+$prop = @mysqli_fetch_assoc(mysqli_query($conn, "SELECT * FROM proposal WHERE nim='$nim'"));
+
+// --- PERBAIKAN LOGIKA SKS & JSDP (ANTI ERROR CASE SENSITIVE) ---
+// Kita cek berbagai kemungkinan nama kolom di database
+$sks = $mhs['total_sks'] ?? $mhs['Total_SKS'] ?? $mhs['SKS'] ?? $mhs['sks'] ?? 0;
+$jsdp = $mhs['jsdp_poin'] ?? $mhs['Total_JSDP'] ?? $mhs['JSDP'] ?? $mhs['jsdp'] ?? $mhs['poin_jsdp'] ?? 0;
 
 // 3. LOGIKA PROGRESS BIMBINGAN
-$cek_bim = mysqli_query($conn, "SELECT * FROM bimbingan WHERE nim='$nim' AND (status='ACC' OR status='Disetujui')");
-$jml_bim = mysqli_num_rows($cek_bim);
+$cek_bim = @mysqli_query($conn, "SELECT * FROM bimbingan WHERE nim='$nim' AND (status='ACC' OR status='Disetujui')");
+$jml_bim = ($cek_bim) ? mysqli_num_rows($cek_bim) : 0;
 $persen_bim = ($jml_bim / 8) * 100; 
 if($persen_bim > 100) $persen_bim = 100;
 
-// 4. AMBIL NOTIFIKASI (Khusus tampilan Home)
-$notif_query = mysqli_query($conn, "SELECT * FROM notifikasi WHERE nim='$nim' AND is_read=0 ORDER BY tanggal DESC");
+// 4. AMBIL NOTIFIKASI
+$notif_query = @mysqli_query($conn, "SELECT * FROM notifikasi WHERE nim='$nim' AND is_read=0 ORDER BY tanggal DESC");
 
-// 5. TENTUKAN HALAMAN AKTIF (Logic Switch Page)
+// 5. TENTUKAN HALAMAN AKTIF
 $page = isset($_GET['page']) ? $_GET['page'] : 'home';
 ?>
 
@@ -50,7 +59,7 @@ $page = isset($_GET['page']) ? $_GET['page'] : 'home';
             </div>
             <div class="d-flex align-items-center">
                 <div class="text-end me-3 d-none d-md-block">
-                    <span class="d-block fw-bold"><?= $_SESSION['user'] ?></span>
+                    <span class="d-block fw-bold"><?= $nama_user ?></span>
                     <small style="opacity: 0.8;"><?= $nim ?></small>
                 </div>
                 <a href="logout.php" class="btn btn-outline-light btn-sm ms-2">
@@ -64,10 +73,10 @@ $page = isset($_GET['page']) ? $_GET['page'] : 'home';
         <div class="row">
             
             <div class="col-lg-3">
-                <div class="card">
-                    <div class="card-header"><i class="bi bi-menu-button-wide"></i> Menu Mahasiswa</div>
+                <div class="card shadow-sm border-0 mb-3">
+                    <div class="card-header bg-white fw-bold"><i class="bi bi-menu-button-wide"></i> Menu Mahasiswa</div>
                     <div class="card-body p-2">
-                        <nav class="nav flex-column">
+                        <nav class="nav flex-column gap-1">
                             <a class="nav-link <?= ($page=='home')?'active':'' ?>" href="dashboard_mhs.php?page=home">
                                 <i class="bi bi-speedometer2 me-2"></i> Dashboard
                             </a>
@@ -81,6 +90,7 @@ $page = isset($_GET['page']) ? $_GET['page'] : 'home';
                             <a class="nav-link <?= ($page=='daftar_sidang')?'active':'' ?>" href="dashboard_mhs.php?page=daftar_sidang">
                                 <i class="bi bi-pencil-square me-2"></i> Daftar Sidang Akhir
                             </a>
+                            
                             <a class="nav-link <?= ($page=='jadwal')?'active':'' ?>" href="dashboard_mhs.php?page=jadwal">
                                 <i class="bi bi-calendar-event me-2"></i> Jadwal Sidang
                             </a>
@@ -90,6 +100,11 @@ $page = isset($_GET['page']) ? $_GET['page'] : 'home';
                             <a class="nav-link <?= ($page=='chat')?'active':'' ?>" href="dashboard_mhs.php?page=chat">
                                 <i class="bi bi-chat-dots me-2"></i> Chat Pembimbing
                             </a>
+                            
+                            <a class="nav-link <?= ($page=='extend')?'active':'' ?>" href="dashboard_mhs.php?page=pengajuan">
+                                <i class="bi bi-hourglass-split me-2"></i> Perpanjangan TA
+                            </a>
+                            
                             <a class="nav-link <?= ($page=='ai')?'active':'' ?>" href="dashboard_mhs.php?page=ai">
                                 <i class="bi bi-stars me-2"></i> Konsultasi AI
                             </a>
@@ -103,25 +118,25 @@ $page = isset($_GET['page']) ? $_GET['page'] : 'home';
                     </div>
                 </div>
                 
-                <div class="card mt-3">
-                    <div class="card-header"><i class="bi bi-person-vcard"></i> Info Akademik</div>
+                <div class="card mt-3 shadow-sm border-0">
+                    <div class="card-header bg-white fw-bold"><i class="bi bi-person-vcard"></i> Info Akademik</div>
                     <div class="card-body">
                         <ul class="list-group list-group-flush small">
                             <li class="list-group-item d-flex justify-content-between px-0">
                                 Total SKS
-                                <span class="badge <?= ($mhs['total_sks'] >= 120) ? 'text-bg-success' : 'text-bg-danger' ?> rounded-pill">
-                                    <?= $mhs['total_sks'] ?> / 120
+                                <span class="badge <?= ($sks >= 120) ? 'text-bg-success' : 'text-bg-danger' ?> rounded-pill">
+                                    <?= $sks ?> / 120
                                 </span>
                             </li>
                             <li class="list-group-item d-flex justify-content-between px-0">
                                 Poin JSDP
-                                <span class="badge <?= ($mhs['jsdp_poin'] >= 600) ? 'text-bg-success' : 'text-bg-danger' ?> rounded-pill">
-                                    <?= $mhs['jsdp_poin'] ?> / 600
+                                <span class="badge <?= ($jsdp >= 600) ? 'text-bg-success' : 'text-bg-danger' ?> rounded-pill">
+                                    <?= $jsdp ?> / 600
                                 </span>
                             </li>
                         </ul>
                         <div class="mt-3 text-center">
-                            <?php if($mhs['total_sks'] >= 120 && $mhs['jsdp_poin'] >= 600): ?>
+                            <?php if($sks >= 120 && $jsdp >= 600): ?>
                                 <span class="text-success small fw-bold"><i class="bi bi-check-circle-fill"></i> Syarat Terpenuhi</span>
                             <?php else: ?>
                                 <span class="text-danger small fw-bold"><i class="bi bi-x-circle-fill"></i> Belum Memenuhi</span>
@@ -133,114 +148,202 @@ $page = isset($_GET['page']) ? $_GET['page'] : 'home';
 
             <div class="col-lg-6">
                 <?php 
-                switch ($page) {
-                    case 'home':
-                        // === KONTEN DASHBOARD UTAMA ===
-                        ?>
-                        
-                        <?php if(mysqli_num_rows($notif_query) > 0): ?>
-                            <?php while($n = mysqli_fetch_array($notif_query)): ?>
-                                <div class="alert alert-warning alert-dismissible fade show shadow-sm border-warning" role="alert">
-                                    <strong><i class="bi bi-bell-fill"></i> <?= htmlspecialchars($n['judul']) ?></strong><br>
-                                    <small><?= htmlspecialchars($n['pesan']) ?></small>
-                                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                                </div>
-                            <?php endwhile; ?>
-                        <?php endif; ?>
+                $data_berita = [
+    1 => [
+        'judul'   => 'Alur Pendaftaran Tugas Akhir 2025',
+        'tanggal' => '22 Des 2025',
+        'penulis' => 'Admin',
+        'gambar'  => 'assets/img/ta1.jpg', // Pastikan path gambar sesuai
+        'isi'     => '<p>Pendaftaran Tugas Akhir periode Genap 2025 telah dibuka. Mahasiswa diharapkan memperhatikan alur berikut:</p>
+                      <ol>
+                        <li>Melakukan pembayaran biaya TA.</li>
+                        <li>Mengisi KRS Tugas Akhir.</li>
+                        <li>Mengajukan topik melalui menu "Pengajuan Proposal".</li>
+                        <li>Menunggu persetujuan Dosen Pembimbing Akademik.</li>
+                      </ol>
+                      <p>Pastikan semua syarat administrasi telah terpenuhi sebelum tanggal 30 Januari 2026.</p>'
+    ],
+    2 => [
+        'judul'   => 'Tips Sukses Menghadapi Sidang Skripsi',
+        'tanggal' => '22 Des 2025',
+        'penulis' => 'Koordinator TA',
+        'gambar'  => 'assets/img/ta2.jpg',
+        'isi'     => '<p>Sidang skripsi seringkali menjadi momen menegangkan. Berikut tips agar lancar:</p>
+                      <ul>
+                        <li>Pahami materi skripsi dari A sampai Z.</li>
+                        <li>Buat slide presentasi yang ringkas dan visual.</li>
+                        <li>Latihan presentasi di depan cermin atau teman.</li>
+                        <li>Jaga etika dan penampilan saat sidang.</li>
+                      </ul>
+                      <p>Semoga sukses untuk seluruh mahasiswa tingkat akhir!</p>'
+    ]
+];
+switch ($page) {
+    case 'home':
+        ?>
+        <div class="mb-4">
+            <h5 class="fw-bold mb-1">
+                Selamat Datang, <?= htmlspecialchars($nama_user) ?> 👋
+            </h5>
+            <p class="text-muted small">
+                Berikut rangkuman informasi dan pengumuman terbaru terkait Tugas Akhir.
+            </p>
+        </div>
 
-                        <div class="alert alert-primary shadow-sm d-flex align-items-center border-0" role="alert" style="background: linear-gradient(45deg, #0d6efd, #0a58ca); color: white;">
-                            <i class="bi bi-info-circle-fill fs-1 me-3 opacity-50"></i>
-                            <div>
-                                <h5 class="alert-heading fw-bold mb-1">Selamat Datang, <?= explode(' ', $_SESSION['user'])[0] ?>!</h5>
-                                <p class="mb-0 small opacity-75">Pantau terus progres Tugas Akhir Anda dan jangan lupa isi logbook bimbingan.</p>
-                            </div>
-                        </div>
-
-                        <div class="card">
-                            <div class="card-header bg-white text-primary">
-                                <i class="bi bi-file-earmark-text-fill"></i> Status Proposal Tugas Akhir
-                            </div>
-                            <div class="card-body">
-                                <?php if ($prop): ?>
-                                    <h5 class="card-title fw-bold text-dark"><?= htmlspecialchars($prop['judul']) ?></h5>
-                                    <div class="d-flex gap-2 my-2">
-                                        <span class="badge bg-light text-dark border"><i class="bi bi-tag"></i> <?= $prop['jenis_ta'] ?></span>
-                                        <span class="badge bg-light text-dark border"><i class="bi bi-calendar"></i> <?= $prop['tanggal_pengajuan'] ?></span>
-                                    </div>
-                                    <div class="mt-3">
-                                        Status Saat Ini: 
-                                        <?php 
-                                            $status_color = 'secondary';
-                                            if($prop['status'] == 'Disetujui') $status_color = 'success';
-                                            elseif($prop['status'] == 'Revisi') $status_color = 'warning';
-                                            elseif($prop['status'] == 'Ditolak') $status_color = 'danger';
-                                            echo "<span class='badge bg-$status_color fs-6'>{$prop['status']}</span>"; 
-                                        ?>
-                                    </div>
-                                    <?php if($prop['status'] == 'Disetujui'): ?>
-                                        <hr>
-                                        <a href="dashboard_mhs.php?page=bimbingan" class="btn btn-outline-success btn-sm w-100">
-                                            <i class="bi bi-plus-circle"></i> Tambah Logbook Bimbingan Baru
-                                        </a>
-                                    <?php endif; ?>
-                                <?php else: ?>
-                                    <div class="text-center py-4">
-                                        <i class="bi bi-file-earmark-x fs-1 text-muted"></i>
-                                        <p class="text-muted mt-2">Anda belum mengajukan proposal.</p>
-                                        <a href="dashboard_mhs.php?page=pengajuan" class="btn btn-primary">
-                                            <i class="bi bi-rocket-takeoff"></i> Ajukan Sekarang
-                                        </a>
-                                    </div>
-                                <?php endif; ?>
-                            </div>
-                        </div>
-
-                        <div class="card mt-3">
-                            <div class="card-body">
-                                <div class="d-flex justify-content-between align-items-end mb-2">
-                                    <div>
-                                        <h6 class="fw-bold m-0"><i class="bi bi-bar-chart-line-fill text-success"></i> Progres Bimbingan</h6>
-                                        <small class="text-muted">Target: Minimal 8 kali (ACC)</small>
-                                    </div>
-                                    <span class="fs-4 fw-bold text-success"><?= $jml_bim ?><small class="fs-6 text-muted">/8</small></span>
-                                </div>
-                                <div class="progress" style="height: 25px; border-radius: 15px;">
-                                    <div class="progress-bar bg-success progress-bar-striped progress-bar-animated" role="progressbar" style="width: <?= $persen_bim ?>%;">
-                                        <?= round($persen_bim) ?>%
-                                    </div>
-                                </div>
-                                <?php if($jml_bim >= 8): ?>
-                                    <div class="alert alert-success mt-3 py-2 small mb-0">
-                                        <i class="bi bi-check-circle-fill"></i> Syarat bimbingan terpenuhi. <a href="dashboard_mhs.php?page=daftar_sidang" class="fw-bold text-success">Daftar Sidang Sekarang</a>.
-                                    </div>
-                                <?php endif; ?>
-                            </div>
-                        </div>
-
-                        <div class="card mt-3">
-                            <div class="card-body">
-                                <h5 class="card-title fw-bold"><i class="bi bi-megaphone"></i> Informasi Akademik</h5>
-                                <p class="card-text text-muted small mb-2"><i class="bi bi-clock"></i> Diposting: 15 Sep 2025</p>
-                                <p class="card-text">Mahasiswa yang telah menyelesaikan minimal 8x bimbingan dapat segera mendaftarkan diri untuk sidang proposal.</p>
-                            </div>
-                        </div>
-                        <?php
-                        // === AKHIR KONTEN DASHBOARD UTAMA ===
-                        break;
-
-                    case 'pengajuan': include 'pengajuan.php'; break;
-                    case 'bimbingan': include 'bimbingan.php'; break;
+        <div class="row g-4">
+            <div class="col-md-6">
+                <div class="card h-100 border-0 shadow-sm rounded-4 overflow-hidden">
+                    <div class="position-relative" style="height: 200px; background-color: #f8f9fa;">
+                        <img src="assets/img/ta1.jpg" class="w-100 h-100" style="object-fit: cover;" alt="Gambar Berita">
+                    </div>
                     
-                    // [TAMBAHAN BARU] INCLUDE FILE SIDANG
-                    case 'daftar_sidang': include 'mhs_sidang.php'; break;
-                    // [AKHIR TAMBAHAN]
+                    <div class="card-body d-flex flex-column p-4">
+                        <h5 class="fw-bold mb-3">Alur Pendaftaran Tugas Akhir 2025</h5>
 
-                    case 'jadwal': include 'jadwal_sidang_view.php'; break; // pastikan file ini ada
-                    case 'chat': include 'chat_dosen.php'; break;
-                    case 'ai': include 'ai_assistant.php'; break;
-                    case 'extend': include 'perpanjangan_ta.php'; break;
-                    case 'bantuan': include 'panduan.php'; break;
-                    default: echo "<div class='alert alert-danger'>Halaman tidak ditemukan!</div>"; break;
+                        <div class="mb-3">
+                            <span class="badge bg-light text-secondary border border-light-subtle rounded-pill px-3 py-2 me-1">
+                                <i class="bi bi-calendar-event me-1"></i> 22 Des 2025
+                            </span>
+                            <span class="badge bg-primary rounded-pill px-3 py-2">
+                                <i class="bi bi-person me-1"></i> Admin
+                            </span>
+                        </div>
+
+                        <p class="text-secondary mb-4" style="line-height: 1.6;">
+                            Pendaftaran Tugas Akhir periode Genap 2025 telah dibuka. Mahasiswa dapat mengajukan topik melalui sistem SITA UPJ.
+                        </p>
+
+                        <div class="mt-auto text-end">
+    <a href="dashboard_mhs.php?page=detail_berita&id=1" class="text-primary text-decoration-none fw-bold link-hover">
+        Detail Informasi <i class="bi bi-arrow-right ms-1"></i>
+    </a>
+</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <div class="card h-100 border-0 shadow-sm rounded-4 overflow-hidden">
+                    <div class="position-relative" style="height: 200px; background-color: #f8f9fa;">
+                         <img src="assets/img/ta2.jpg" class="w-100 h-100" style="object-fit: cover;" alt="Gambar Berita">
+                    </div>
+
+                    <div class="card-body d-flex flex-column p-4">
+                        <h5 class="fw-bold mb-3">Tips Sukses Menghadapi Sidang Skripsi</h5>
+
+                        <div class="mb-3">
+                            <span class="badge bg-light text-secondary border border-light-subtle rounded-pill px-3 py-2 me-1">
+                                <i class="bi bi-calendar-event me-1"></i> 22 Des 2025
+                            </span>
+                            <span class="badge bg-success rounded-pill px-3 py-2">
+                                <i class="bi bi-person-badge me-1"></i> Koordinator TA
+                            </span>
+                        </div>
+
+                        <p class="text-secondary mb-4" style="line-height: 1.6;">
+                            Sidang skripsi merupakan tahap akhir sebelum kelulusan. Persiapan dan pemahaman alur sangat menentukan hasil.
+                        </p>
+
+                        <div class="mt-auto text-end">
+    <a href="dashboard_mhs.php?page=detail_berita&id=2" class="text-primary text-decoration-none fw-bold link-hover">
+        Detail Informasi <i class="bi bi-arrow-right ms-1"></i>
+    </a>
+</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-12">
+                 <div class="card border-0 shadow-sm rounded-4 p-3">
+                    <div class="card-body d-flex align-items-center">
+                        <div class="flex-shrink-0 bg-primary bg-opacity-10 p-3 rounded-circle me-3 text-primary">
+                             <i class="bi bi-info-circle-fill fs-3"></i>
+                        </div>
+                        <div>
+                             <h6 class="fw-bold mb-1">Tahapan Seminar Proposal (Sempro)</h6>
+                             <p class="text-muted small mb-0">Wajib dipahami oleh seluruh mahasiswa yang mengambil mata kuliah Tugas Akhir.</p>
+                        </div>
+                         <div class="ms-auto">
+                            <a href="#" class="btn btn-sm btn-outline-primary rounded-pill">Lihat Panduan</a>
+                        </div>
+                    </div>
+                 </div>
+            </div>
+
+        </div>
+        <?php
+        break;
+// ... code selanjutnya (case 'pengajuan', dll)
+// ... setelah case 'home' ...
+
+    case 'detail_berita':
+        $id_berita = isset($_GET['id']) ? $_GET['id'] : 0;
+        
+        // Cek apakah ID ada di data array kita
+        if (array_key_exists($id_berita, $data_berita)) {
+            $berita = $data_berita[$id_berita];
+            ?>
+            
+            <div class="card border-0 shadow-sm rounded-4 overflow-hidden animate__animated animate__fadeIn">
+                <div class="position-relative" style="height: 300px; background-color: #eee;">
+                    <img src="<?= $berita['gambar'] ?>" class="w-100 h-100" style="object-fit: cover; filter: brightness(0.9);">
+                    <div class="position-absolute bottom-0 start-0 w-100 p-4" style="background: linear-gradient(to top, rgba(0,0,0,0.7), transparent);">
+                        <h2 class="text-white fw-bold mb-2"><?= $berita['judul'] ?></h2>
+                        <div class="text-white-50 small">
+                            <i class="bi bi-calendar-event me-2"></i> <?= $berita['tanggal'] ?> &nbsp;|&nbsp; 
+                            <i class="bi bi-person me-2"></i> <?= $berita['penulis'] ?>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card-body p-4 p-md-5">
+                    <div class="row justify-content-center">
+                        <div class="col-lg-10">
+                            <article class="lh-lg text-secondary">
+                                <?= $berita['isi'] ?>
+                            </article>
+                            
+                            <hr class="my-5">
+                            
+                            <div class="d-flex justify-content-between align-items-center">
+                                <a href="dashboard_mhs.php?page=home" class="btn btn-outline-secondary rounded-pill px-4">
+                                    <i class="bi bi-arrow-left me-2"></i> Kembali
+                                </a>
+                                <button class="btn btn-primary rounded-pill px-4" onclick="window.print()">
+                                    <i class="bi bi-printer me-2"></i> Cetak
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <?php
+        } else {
+            // Jika ID tidak ditemukan
+            echo "<div class='alert alert-warning'>Berita tidak ditemukan! <a href='dashboard_mhs.php?page=home'>Kembali</a></div>";
+        }
+        break;
+
+    // ... lanjutkan ke case 'pengajuan', dll ...
+                    // === ROUTING HALAMAN ===
+                    case 'pengajuan':     include 'pengajuan.php'; break;
+                    case 'bimbingan':     include 'bimbingan.php'; break;
+                    
+                    // DAFTAR SIDANG (File: mhs_sidang.php)
+                    case 'daftar_sidang': include 'mhs_sidang.php'; break; 
+                    
+                    // JADWAL SIDANG (File: jadwal_sidang_view.php)
+                    case 'jadwal':        include 'jadwal_sidang_view.php'; break; 
+
+                    case 'chat':          include 'chat_dosen.php'; break;
+                    case 'ai':            include 'ai_assistant.php'; break;
+                    case 'extend':        include 'pengajuan.php'; break;
+                    case 'bantuan':       include 'panduan.php'; break;
+                    
+                    default: 
+                        echo "<div class='alert alert-danger'>Halaman tidak ditemukan!</div>"; 
+                        break;
                 }
                 ?>
             </div>
@@ -248,7 +351,7 @@ $page = isset($_GET['page']) ? $_GET['page'] : 'home';
             <div class="col-lg-3">
                 
                 <?php if($page == 'home' || $page == 'pengajuan'): ?>
-                    <div class="card border-danger">
+                    <div class="card border-danger shadow-sm mb-3">
                         <div class="card-header bg-danger text-white fw-bold"><i class="bi bi-alarm"></i> Deadline Penting</div>
                         <ul class="list-group list-group-flush small">
                             <li class="list-group-item list-group-item-warning"><strong><i class="bi bi-exclamation-circle"></i> Revisi:</strong> 20 Sept 2025</li>
@@ -257,7 +360,7 @@ $page = isset($_GET['page']) ? $_GET['page'] : 'home';
                         </ul>
                     </div>
 
-                    <div class="card mt-3">
+                    <div class="card mt-3 shadow-sm border-0">
                         <div class="card-header fw-bold bg-light"><i class="bi bi-folder2-open"></i> Dokumen</div>
                         <div class="list-group list-group-flush small">
                             <a href="#" class="list-group-item list-group-item-action">Template Proposal 2025 <i class="bi bi-download float-end"></i></a>
@@ -265,7 +368,7 @@ $page = isset($_GET['page']) ? $_GET['page'] : 'home';
                         </div>
                     </div>
 
-                    <div class="card mt-3">
+                    <div class="card mt-3 shadow-sm border-0">
                         <div class="card-body text-center">
                             <h6 class="fw-bold text-muted">Semester Gasal 2025</h6>
                             <h2 class="display-4 fw-bold text-primary"><?= date('d') ?></h2>
@@ -274,7 +377,7 @@ $page = isset($_GET['page']) ? $_GET['page'] : 'home';
                     </div>
 
                 <?php elseif($page == 'ai'): ?>
-                    <div class="card border-primary">
+                    <div class="card border-primary shadow-sm">
                         <div class="card-header bg-primary text-white fw-bold"><i class="bi bi-lightbulb"></i> Tips Prompt</div>
                         <div class="card-body small">
                             <p class="mb-2">Cobalah bertanya:</p>
@@ -286,19 +389,19 @@ $page = isset($_GET['page']) ? $_GET['page'] : 'home';
                     </div>
 
                 <?php elseif($page == 'jadwal'): ?>
-                     <div class="card border-info">
+                     <div class="card border-info shadow-sm">
                         <div class="card-header bg-info text-white fw-bold"><i class="bi bi-info-circle"></i> Tata Tertib</div>
                         <div class="card-body small">Wajib menggunakan jas almamater dan datang 30 menit sebelum jadwal.</div>
                     </div>
 
                 <?php elseif($page == 'extend'): ?>
-                     <div class="card border-danger">
+                     <div class="card border-danger shadow-sm">
                         <div class="card-header bg-danger text-white fw-bold">Syarat</div>
                         <div class="card-body small">Maksimal perpanjangan 6 bulan dengan persetujuan Koordinator.</div>
                     </div>
 
                 <?php else: ?>
-                    <div class="card">
+                    <div class="card shadow-sm border-0">
                         <div class="card-header fw-bold bg-light">Butuh Bantuan?</div>
                         <div class="card-body text-center">
                             <i class="bi bi-headset fs-1 text-info"></i>
@@ -338,9 +441,12 @@ $page = isset($_GET['page']) ? $_GET['page'] : 'home';
             if(message === "") return;
             chatBox.innerHTML += `<div class="msg-container"><div class="msg-user">${message}</div></div>`;
             input.value = ''; chatBox.scrollTop = chatBox.scrollHeight; loading.style.display = 'block';
-            fetch('ai_handler.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: message }) })
-            .then(res => res.json()).then(data => { loading.style.display = 'none'; chatBox.innerHTML += `<div class="msg-container"><div class="msg-ai">${data.reply}</div></div>`; chatBox.scrollTop = chatBox.scrollHeight; })
-            .catch(err => { loading.style.display = 'none'; chatBox.innerHTML += `<div class="msg-container"><div class="msg-ai text-danger">Error koneksi server.</div></div>`; });
+            
+            setTimeout(() => {
+                loading.style.display = 'none';
+                chatBox.innerHTML += `<div class="msg-container"><div class="msg-ai">Maaf, fitur AI sedang dalam pengembangan.</div></div>`;
+                chatBox.scrollTop = chatBox.scrollHeight;
+            }, 1000);
         }
     </script>
     <?php endif; ?>

@@ -2,8 +2,7 @@
 session_start();
 include 'koneksi.php';
 
-// 1. CEK KEAMANAN AKSES (DIPERBARUI)
-// Tambahkan pengecekan untuk 'Penguji' agar tidak ditendang keluar
+// 1. CEK KEAMANAN AKSES
 if (!isset($_SESSION['role']) || 
    ($_SESSION['role'] != 'Dosen' && $_SESSION['role'] != 'Koordinator' && $_SESSION['role'] != 'Penguji')) {
     header("Location: index.php"); 
@@ -19,7 +18,8 @@ $nama = $_SESSION['user'];
 // ==============================================================================
 if (isset($_GET['page']) && $_GET['page'] == 'chat' && isset($_GET['nim'])) {
     $pengirim = mysqli_real_escape_string($conn, $_GET['nim']);
-    mysqli_query($conn, "UPDATE pesan SET is_read=1 WHERE pengirim='$pengirim' AND penerima='$nidn'");
+    // Update tabel Pesan (Huruf Besar)
+    mysqli_query($conn, "UPDATE Pesan SET is_read=1 WHERE pengirim='$pengirim' AND penerima='$nidn'");
 }
 
 // ==============================================================================
@@ -30,30 +30,36 @@ $jml_prop_baru   = 0;
 $jml_sidang_baru = 0;
 $jml_pesan_baru  = 0;
 $jml_extend_pending = 0;
-$jml_ujian_pending = 0; // Variabel baru untuk Penguji
+$jml_ujian_pending = 0;
 
 if ($role == 'Dosen') {
     // Statistik Dosen Pembimbing
-    $query_bim = mysqli_query($conn, "SELECT * FROM bimbingan WHERE nidn_pembimbing='$nidn' AND status='Menunggu'");
+    // Tabel: Bimbingan, Kolom: NIDN (Pengganti nidn_pembimbing), Status
+    $query_bim = mysqli_query($conn, "SELECT * FROM Bimbingan WHERE NIDN='$nidn' AND Status='Menunggu'");
     $jml_bim_pending = mysqli_num_rows($query_bim);
 
-    $query_pesan = mysqli_query($conn, "SELECT * FROM pesan WHERE penerima='$nidn' AND is_read=0");
+    // Tabel: Pesan
+    $query_pesan = mysqli_query($conn, "SELECT * FROM Pesan WHERE penerima='$nidn' AND is_read=0");
     if($query_pesan) $jml_pesan_baru = mysqli_num_rows($query_pesan);
 
 } elseif ($role == 'Koordinator') {
     // Statistik Koordinator
-    $query_prop = mysqli_query($conn, "SELECT * FROM proposal WHERE status='Diajukan'");
+    // Tabel: Proposal, Kolom: status_pengajuan (Pengganti status)
+    $query_prop = mysqli_query($conn, "SELECT * FROM Proposal WHERE status_pengajuan='Diajukan'");
     $jml_prop_baru = mysqli_num_rows($query_prop);
     
-    $query_sidang = @mysqli_query($conn, "SELECT * FROM sidang WHERE status_sidang='Menunggu Jadwal'");
+    // Tabel: Sidang
+    $query_sidang = @mysqli_query($conn, "SELECT * FROM Sidang WHERE status_sidang='Menunggu Jadwal'");
     if($query_sidang) $jml_sidang_baru = mysqli_num_rows($query_sidang);
 
-    $query_ext = @mysqli_query($conn, "SELECT * FROM perpanjangan WHERE status_perpanjangan='Diajukan'");
+    // Tabel: Perpanjangan
+    $query_ext = @mysqli_query($conn, "SELECT * FROM Perpanjangan WHERE status_perpanjangan='Diajukan'");
     if ($query_ext) $jml_extend_pending = mysqli_num_rows($query_ext);
 
 } elseif ($role == 'Penguji') {
-    // Statistik Penguji: Cari sidang yang statusnya 'Dijadwalkan' untuk penguji ini
-    $query_ujian = mysqli_query($conn, "SELECT * FROM sidang WHERE nidn_penguji='$nidn' AND status_sidang='Dijadwalkan'");
+    // Statistik Penguji
+    // Tabel: Sidang, Kolom: NIDN (Pengganti nidn_penguji)
+    $query_ujian = mysqli_query($conn, "SELECT * FROM Sidang WHERE NIDN='$nidn' AND status_sidang='Dijadwalkan'");
     if($query_ujian) $jml_ujian_pending = mysqli_num_rows($query_ujian);
 }
 
@@ -87,7 +93,7 @@ $page = isset($_GET['page']) ? $_GET['page'] : 'home';
                     <span class="d-block fw-bold"><?= $nama ?></span>
                     <?php
                         $bg_badge = 'bg-warning text-dark';
-                        if($role=='Penguji') $bg_badge = 'bg-danger text-white'; // Warna Merah untuk Penguji
+                        if($role=='Penguji') $bg_badge = 'bg-danger text-white';
                         if($role=='Dosen') $bg_badge = 'bg-light text-primary';
                     ?>
                     <span class="badge <?= $bg_badge ?>"><?= $role ?></span>
@@ -239,9 +245,8 @@ $page = isset($_GET['page']) ? $_GET['page'] : 'home';
                                             <div class="d-flex align-items-center justify-content-between mt-2">
                                                 <h2 class="mb-0 fw-bold text-success">
                                                     <?php 
-                                                    // Handle nama kolom role/peran
-                                                    $q_dosen = mysqli_query($conn, "SELECT nidn FROM dosen WHERE peran='Dosen'");
-                                                    if (!$q_dosen) { $q_dosen = mysqli_query($conn, "SELECT nidn FROM dosen WHERE role='Dosen'"); }
+                                                    // Perbaikan nama tabel & kolom
+                                                    $q_dosen = mysqli_query($conn, "SELECT NIDN FROM Dosen WHERE Role='Dosen'");
                                                     echo ($q_dosen) ? mysqli_num_rows($q_dosen) : 0;
                                                     ?>
                                                 </h2>

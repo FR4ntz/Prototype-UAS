@@ -11,13 +11,13 @@ if (isset($_POST['simpan_dosen'])) {
     $peran = mysqli_real_escape_string($conn, $_POST['peran']);
     $pass  = md5($_POST['password']); 
     
-    // Cek NIDN Kembar
-    $cek = mysqli_query($conn, "SELECT nidn FROM dosen WHERE nidn='$nidn'");
+    // Cek NIDN Kembar (Tabel Dosen, Kolom NIDN)
+    $cek = mysqli_query($conn, "SELECT NIDN FROM Dosen WHERE NIDN='$nidn'");
     if (mysqli_num_rows($cek) > 0) {
         echo "<script>alert('Gagal: NIDN sudah terdaftar!');</script>";
     } else {
-        // Karena kolom di database Anda bernama 'role', kita pakai query ini:
-        $q_insert = "INSERT INTO dosen (nidn, nama, password, role) VALUES ('$nidn', '$nama', '$pass', '$peran')";
+        // Query Insert (Kolom: NIDN, Nama, Password, Role)
+        $q_insert = "INSERT INTO Dosen (NIDN, Nama, Password, Role) VALUES ('$nidn', '$nama', '$pass', '$peran')";
         
         if (mysqli_query($conn, $q_insert)) {
             echo "<script>alert('Berhasil menambah akun!'); window.location='dashboard_dosen.php?page=master_dosen';</script>";
@@ -28,7 +28,7 @@ if (isset($_POST['simpan_dosen'])) {
 }
 
 // ==============================================================================
-// 2. LOGIKA HAPUS DOSEN (PERBAIKAN UTAMA DI SINI)
+// 2. LOGIKA HAPUS DOSEN
 // ==============================================================================
 if (isset($_POST['hapus_dosen'])) {
     $nidn = mysqli_real_escape_string($conn, $_POST['nidn_hapus']);
@@ -36,7 +36,7 @@ if (isset($_POST['hapus_dosen'])) {
     if ($nidn == $_SESSION['username']) {
         echo "<script>alert('Tidak bisa menghapus akun sendiri!');</script>";
     } else {
-        $q_del = mysqli_query($conn, "DELETE FROM dosen WHERE nidn='$nidn'");
+        $q_del = mysqli_query($conn, "DELETE FROM Dosen WHERE NIDN='$nidn'");
         if($q_del) {
             echo "<script>alert('Data dosen dihapus.'); window.location='dashboard_dosen.php?page=master_dosen';</script>";
         } else {
@@ -100,17 +100,17 @@ if (isset($_POST['hapus_dosen'])) {
                 </thead>
                 <tbody>
                     <?php
-                    // Ambil data dosen (sesuaikan dengan nama kolom di DB Anda: 'role')
-                    $q_dosen = mysqli_query($conn, "SELECT * FROM dosen ORDER BY nidn ASC");
+                    // Ambil data dosen (Tabel Dosen, Urutkan NIDN)
+                    $q_dosen = mysqli_query($conn, "SELECT * FROM Dosen ORDER BY NIDN ASC");
 
                     if ($q_dosen && mysqli_num_rows($q_dosen) > 0):
                         while($r = mysqli_fetch_array($q_dosen)):
-                            // Pastikan membaca kolom 'role'
-                            $role_user = $r['role']; 
+                            // Kolom Role di database
+                            $role_user = $r['Role']; 
                     ?>
                     <tr>
-                        <td class="ps-4 fw-bold text-dark"><?= $r['nidn'] ?></td>
-                        <td class="text-secondary"><?= $r['nama'] ?></td>
+                        <td class="ps-4 fw-bold text-dark"><?= $r['NIDN'] ?></td>
+                        <td class="text-secondary"><?= $r['Nama'] ?></td>
                         <td class="text-center">
                             <?php if($role_user == 'Koordinator'): ?>
                                 <span class="badge bg-warning text-dark rounded-pill px-3">Koordinator</span>
@@ -121,9 +121,9 @@ if (isset($_POST['hapus_dosen'])) {
                             <?php endif; ?>
                         </td>
                         <td class="text-center">
-                            <?php if($r['nidn'] != $_SESSION['username']): ?>
-                                <form method="POST" onsubmit="return confirm('Yakin hapus akun <?= $r['nama'] ?>?');">
-                                    <input type="hidden" name="nidn_hapus" value="<?= $r['nidn'] ?>">
+                            <?php if($r['NIDN'] != $_SESSION['username']): ?>
+                                <form method="POST" onsubmit="return confirm('Yakin hapus akun <?= $r['Nama'] ?>?');">
+                                    <input type="hidden" name="nidn_hapus" value="<?= $r['NIDN'] ?>">
                                     
                                     <button type="submit" name="hapus_dosen" class="btn btn-danger btn-sm p-1 px-2" title="Hapus">
                                         <i class="bi bi-trash-fill"></i>

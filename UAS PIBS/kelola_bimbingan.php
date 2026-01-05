@@ -3,14 +3,17 @@
 // 1. LOGIKA UPDATE RESPON DOSEN
 // ==============================================================================
 if (isset($_POST['update_respon'])) {
-    $id_bim  = $_POST['id_bimbingan'];
+    $id_bim  = $_POST['id_bimbingan']; // Ini idBimbingan (CHAR)
     $catatan = mysqli_real_escape_string($conn, $_POST['catatan']);
     $status  = $_POST['status'];
     
-    $query = "UPDATE bimbingan SET catatan_dosen='$catatan', status='$status' WHERE id_bimbingan='$id_bim'";
+    // Sesuaikan Nama Kolom & Tabel (PascalCase)
+    $query = "UPDATE Bimbingan SET Catatan_Dosen='$catatan', Status='$status' WHERE idBimbingan='$id_bim'";
     
     if (mysqli_query($conn, $query)) {
         echo "<script>alert('Respon berhasil disimpan!'); window.location='dashboard_dosen.php?page=bimbingan';</script>";
+    } else {
+        echo "<script>alert('Gagal Update: ".mysqli_error($conn)."');</script>";
     }
 }
 ?>
@@ -23,24 +26,24 @@ if (isset($_POST['update_respon'])) {
         
         <?php
         // 1. AMBIL DATA MAHASISWA (DISTINCT / UNIK)
-        // Kita hanya mengambil daftar mahasiswa yang punya bimbingan dengan dosen ini
-        $q_mhs = mysqli_query($conn, "SELECT DISTINCT m.nim, m.nama 
-                                      FROM bimbingan b 
-                                      JOIN mahasiswa m ON b.nim = m.nim 
-                                      WHERE b.nidn_pembimbing = '$nidn'
-                                      ORDER BY m.nama ASC");
+        // Join Tabel Bimbingan & Mahasiswa (Gunakan nama kolom baru)
+        $q_mhs = mysqli_query($conn, "SELECT DISTINCT m.NIM, m.Nama 
+                                      FROM Bimbingan b 
+                                      JOIN Mahasiswa m ON b.NIM = m.NIM 
+                                      WHERE b.NIDN = '$nidn'
+                                      ORDER BY m.Nama ASC");
 
-        if(mysqli_num_rows($q_mhs) > 0):
+        if($q_mhs && mysqli_num_rows($q_mhs) > 0):
         ?>
             <div class="accordion accordion-flush" id="accordionBimbingan">
                 
                 <?php 
                 $no = 1;
                 while($mhs = mysqli_fetch_array($q_mhs)): 
-                    $nim_mhs = $mhs['nim'];
+                    $nim_mhs = $mhs['NIM'];
                     
-                    // Hitung jumlah bimbingan pending per mahasiswa untuk Badge
-                    $q_count = mysqli_query($conn, "SELECT COUNT(*) as total FROM bimbingan WHERE nim='$nim_mhs' AND nidn_pembimbing='$nidn' AND status='Menunggu'");
+                    // Hitung jumlah bimbingan pending (Status='Menunggu')
+                    $q_count = mysqli_query($conn, "SELECT COUNT(*) as total FROM Bimbingan WHERE NIM='$nim_mhs' AND NIDN='$nidn' AND Status='Menunggu'");
                     $d_count = mysqli_fetch_assoc($q_count);
                     $pending = $d_count['total'];
                 ?>
@@ -50,7 +53,7 @@ if (isset($_POST['update_respon'])) {
                         <button class="accordion-button collapsed py-3" type="button" data-bs-toggle="collapse" data-bs-target="#collapse<?= $nim_mhs ?>">
                             <div class="d-flex w-100 justify-content-between align-items-center pe-3">
                                 <div>
-                                    <span class="fw-bold text-dark"><?= $mhs['nama'] ?></span>
+                                    <span class="fw-bold text-dark"><?= $mhs['Nama'] ?></span>
                                     <span class="text-muted small ms-2">(<?= $nim_mhs ?>)</span>
                                 </div>
                                 <?php if($pending > 0): ?>
@@ -79,22 +82,23 @@ if (isset($_POST['update_respon'])) {
                                         <tbody>
                                             <?php
                                             // 2. AMBIL DETAIL BIMBINGAN PER MAHASISWA
-                                            $q_bim = mysqli_query($conn, "SELECT * FROM bimbingan 
-                                                                          WHERE nim='$nim_mhs' AND nidn_pembimbing='$nidn' 
-                                                                          ORDER BY tanggal DESC");
+                                            // Kolom: NIM, NIDN, Tanggal (PascalCase)
+                                            $q_bim = mysqli_query($conn, "SELECT * FROM Bimbingan 
+                                                                          WHERE NIM='$nim_mhs' AND NIDN='$nidn' 
+                                                                          ORDER BY Tanggal DESC");
                                             while($row = mysqli_fetch_array($q_bim)):
                                             ?>
                                             <tr>
                                                 <td>
                                                     <i class="bi bi-calendar-event me-1 text-muted"></i> 
-                                                    <?= date('d M Y', strtotime($row['tanggal'])) ?>
+                                                    <?= date('d M Y', strtotime($row['Tanggal'])) ?>
                                                 </td>
                                                 <td>
                                                     <div class="fw-bold mb-1">Topik:</div>
-                                                    <p class="mb-2 text-muted fst-italic">"<?= $row['topik'] ?>"</p>
+                                                    <p class="mb-2 text-muted fst-italic">"<?= $row['Topik'] ?>"</p>
                                                     
-                                                    <?php if(!empty($row['bukti_foto'])): ?>
-                                                        <a href="uploads/bukti_bimbingan/<?= $row['bukti_foto'] ?>" target="_blank" class="btn btn-sm btn-outline-info py-0 px-2" style="font-size: 0.75rem;">
+                                                    <?php if(!empty($row['Bukti_Foto'])): ?>
+                                                        <a href="uploads/bukti_bimbingan/<?= $row['Bukti_Foto'] ?>" target="_blank" class="btn btn-sm btn-outline-info py-0 px-2" style="font-size: 0.75rem;">
                                                             <i class="bi bi-image me-1"></i> Lihat Bukti
                                                         </a>
                                                     <?php endif; ?>
@@ -102,23 +106,23 @@ if (isset($_POST['update_respon'])) {
                                                 <td class="text-center">
                                                     <?php 
                                                         $bg = 'secondary';
-                                                        if($row['status']=='Menunggu') $bg = 'warning text-dark';
-                                                        elseif($row['status']=='ACC' || $row['status']=='Disetujui') $bg = 'success';
-                                                        elseif($row['status']=='Revisi') $bg = 'danger';
-                                                        echo "<span class='badge bg-$bg w-100'>{$row['status']}</span>";
+                                                        if($row['Status']=='Menunggu') $bg = 'warning text-dark';
+                                                        elseif($row['Status']=='ACC' || $row['Status']=='Disetujui') $bg = 'success';
+                                                        elseif($row['Status']=='Revisi') $bg = 'danger';
+                                                        echo "<span class='badge bg-$bg w-100'>{$row['Status']}</span>";
                                                     ?>
                                                 </td>
                                                 <td class="bg-white">
                                                     <form method="POST">
-                                                        <input type="hidden" name="id_bimbingan" value="<?= $row['id_bimbingan'] ?>">
+                                                        <input type="hidden" name="id_bimbingan" value="<?= $row['idBimbingan'] ?>">
                                                         
-                                                        <textarea name="catatan" class="form-control form-control-sm mb-2" rows="2" placeholder="Catatan..."><?= $row['catatan_dosen'] ?></textarea>
+                                                        <textarea name="catatan" class="form-control form-control-sm mb-2" rows="2" placeholder="Catatan..."><?= $row['Catatan_Dosen'] ?></textarea>
                                                         
                                                         <div class="input-group input-group-sm">
                                                             <select name="status" class="form-select">
-                                                                <option value="Menunggu" <?= $row['status']=='Menunggu'?'selected':'' ?>>Menunggu</option>
-                                                                <option value="Revisi" <?= $row['status']=='Revisi'?'selected':'' ?>>Revisi</option>
-                                                                <option value="ACC" <?= ($row['status']=='ACC' || $row['status']=='Disetujui')?'selected':'' ?>>ACC</option>
+                                                                <option value="Menunggu" <?= $row['Status']=='Menunggu'?'selected':'' ?>>Menunggu</option>
+                                                                <option value="Revisi" <?= $row['Status']=='Revisi'?'selected':'' ?>>Revisi</option>
+                                                                <option value="ACC" <?= ($row['Status']=='ACC' || $row['Status']=='Disetujui')?'selected':'' ?>>ACC</option>
                                                             </select>
                                                             <button type="submit" name="update_respon" class="btn btn-primary">
                                                                 <i class="bi bi-send"></i>

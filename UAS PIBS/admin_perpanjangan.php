@@ -2,98 +2,97 @@
 // Cek akses
 if ($_SESSION['role'] != 'Koordinator') { exit("Akses Ditolak."); }
 
-// LOGIKA VERIFIKASI EXTEND
-if (isset($_POST['aksi_extend'])) {
+// ==============================================================================
+// 1. LOGIKA VALIDASI (ACC/TOLAK)
+// ==============================================================================
+if (isset($_POST['aksi'])) {
     $id_ext = $_POST['id_perpanjangan'];
-    $status = $_POST['aksi_extend']; // 'Disetujui' atau 'Ditolak'
+    $status = $_POST['status_perpanjangan']; // Disetujui / Ditolak
     
-    $query = "UPDATE perpanjangan SET status_perpanjangan='$status' WHERE id_perpanjangan='$id_ext'";
-    if(mysqli_query($conn, $query)){
-        echo "<script>alert('Status perpanjangan diperbarui!'); window.location='dashboard_dosen.php?page=extend';</script>";
+    // Update tabel Perpanjangan
+    $q = "UPDATE Perpanjangan SET status_perpanjangan='$status' WHERE id_perpanjangan='$id_ext'";
+    
+    if (mysqli_query($conn, $q)) {
+        echo "<script>alert('Status berhasil diubah menjadi: $status'); window.location='dashboard_dosen.php?page=extend';</script>";
+    } else {
+        echo "<script>alert('Gagal update: ".mysqli_error($conn)."');</script>";
     }
 }
+
+// ==============================================================================
+// 2. AMBIL DATA PENGAJUAN
+// ==============================================================================
+// Join: Perpanjangan, Mahasiswa, Proposal
+$query = "SELECT ex.*, m.Nama, m.NIM, p.Judul 
+          FROM Perpanjangan ex
+          JOIN Mahasiswa m ON ex.nim = m.NIM
+          JOIN Proposal p ON ex.id_proposal = p.idProposal
+          ORDER BY ex.tanggal_pengajuan DESC";
+
+$result = mysqli_query($conn, $query);
 ?>
 
 <div class="card shadow-sm border-0">
-    <div class="card-header bg-danger text-white fw-bold d-flex justify-content-between align-items-center py-3">
-        <span><i class="bi bi-hourglass-split me-2"></i> Validasi Perpanjangan TA</span>
+    <div class="card-header bg-white py-3">
+        <h5 class="m-0 fw-bold text-dark"><i class="bi bi-hourglass-split me-2"></i> Validasi Perpanjangan Waktu (Extend)</h5>
     </div>
     <div class="card-body p-0">
         <div class="table-responsive">
-            <table class="table table-hover mb-0 align-middle">
-                <thead class="table-light text-secondary text-uppercase small">
+            <table class="table table-bordered table-hover align-middle mb-0 small">
+                <thead class="bg-light text-secondary text-uppercase">
                     <tr>
-                        <th class="ps-3">Tgl Masuk</th>
+                        <th>Tgl Pengajuan</th>
                         <th>Mahasiswa</th>
-                        <th class="text-center">Durasi</th>
-                        <th>Alasan Pengajuan</th>
+                        <th>Judul TA</th>
+                        <th>Durasi & Alasan</th>
                         <th class="text-center">Status</th>
                         <th class="text-center">Aksi</th>
                     </tr>
                 </thead>
                 <tbody>
-                    <?php
-                    // Ambil semua pengajuan extend
-                    // Join ke mahasiswa untuk nama & nim
-                    $q_ext = mysqli_query($conn, "
-                        SELECT ex.*, m.nama, m.nim 
-                        FROM perpanjangan ex 
-                        JOIN mahasiswa m ON ex.nim = m.nim 
-                        ORDER BY FIELD(ex.status_perpanjangan, 'Diajukan') DESC, ex.tanggal_pengajuan ASC
-                    ");
-                    
-                    if(mysqli_num_rows($q_ext) > 0):
-                        while($row = mysqli_fetch_assoc($q_ext)):
-                    ?>
-                    <tr>
-                        <td class="ps-3 text-muted small">
-                            <?= date('d M Y', strtotime($row['tanggal_pengajuan'])) ?>
-                        </td>
-                        <td>
-                            <strong><?= $row['nama'] ?></strong><br>
-                            <span class="text-muted small"><?= $row['nim'] ?></span>
-                        </td>
-                        <td class="text-center">
-                            <span class="badge bg-info text-dark">
-                                <?= $row['lama_perpanjangan'] ?> Bulan
-                            </span>
-                        </td>
-                        <td>
-                            <p class="text-muted small mb-0 fst-italic text-break" style="max-width: 250px;">
-                                "<?= substr($row['alasan'], 0, 100) ?>..."
-                            </p>
-                        </td>
-                        <td class="text-center">
-                            <?php
-                            $bg = 'secondary';
-                            if($row['status_perpanjangan']=='Diajukan') $bg='warning text-dark';
-                            if($row['status_perpanjangan']=='Disetujui') $bg='success';
-                            if($row['status_perpanjangan']=='Ditolak') $bg='danger';
-                            echo "<span class='badge bg-$bg rounded-pill px-3'>{$row['status_perpanjangan']}</span>";
-                            ?>
-                        </td>
-                        <td class="text-center">
-                            <?php if($row['status_perpanjangan'] == 'Diajukan'): ?>
-                                <form method="POST" class="d-flex justify-content-center gap-1">
-                                    <input type="hidden" name="id_perpanjangan" value="<?= $row['id_perpanjangan'] ?>">
-                                    
-                                    <button type="submit" name="aksi_extend" value="Disetujui" class="btn btn-success btn-sm fw-bold" onclick="return confirm('Setujui perpanjangan <?= $row['nama'] ?>?');">
-                                        <i class="bi bi-check-lg"></i>
-                                    </button>
-                                    
-                                    <button type="submit" name="aksi_extend" value="Ditolak" class="btn btn-danger btn-sm fw-bold" onclick="return confirm('Tolak pengajuan ini?');">
-                                        <i class="bi bi-x-lg"></i>
-                                    </button>
-                                </form>
-                            <?php else: ?>
-                                <span class="text-muted small">
-                                    <i class="bi bi-check2-all"></i> Selesai
-                                </span>
-                            <?php endif; ?>
-                        </td>
-                    </tr>
-                    <?php endwhile; else: ?>
-                        <tr><td colspan="6" class="text-center py-5 text-muted">Belum ada pengajuan perpanjangan masuk.</td></tr>
+                    <?php if ($result && mysqli_num_rows($result) > 0): ?>
+                        <?php while ($row = mysqli_fetch_assoc($result)): ?>
+                            <tr>
+                                <td><?= date('d M Y', strtotime($row['tanggal_pengajuan'])) ?></td>
+                                <td>
+                                    <span class="fw-bold"><?= $row['Nama'] ?></span><br>
+                                    <span class="text-muted"><?= $row['NIM'] ?></span>
+                                </td>
+                                <td><?= substr($row['Judul'], 0, 50) ?>...</td>
+                                <td>
+                                    <span class="badge bg-info text-dark mb-1"><?= $row['lama_perpanjangan'] ?> Bulan</span><br>
+                                    <span class="text-muted fst-italic">"<?= $row['alasan'] ?>"</span>
+                                </td>
+                                <td class="text-center">
+                                    <?php 
+                                    $st = $row['status_perpanjangan'];
+                                    $bg = ($st=='Disetujui')?'success':(($st=='Ditolak')?'danger':'warning text-dark');
+                                    echo "<span class='badge bg-$bg rounded-pill'>$st</span>";
+                                    ?>
+                                </td>
+                                <td class="text-center">
+                                    <?php if($st == 'Diajukan'): ?>
+                                        <form method="POST" class="d-flex gap-1 justify-content-center">
+                                            <input type="hidden" name="id_perpanjangan" value="<?= $row['id_perpanjangan'] ?>">
+                                            
+                                            <button type="submit" name="aksi" value="acc" class="btn btn-success btn-sm" title="Setujui" onclick="this.form.status_perpanjangan.value='Disetujui'">
+                                                <i class="bi bi-check-lg"></i>
+                                            </button>
+                                            
+                                            <button type="submit" name="aksi" value="tolak" class="btn btn-danger btn-sm" title="Tolak" onclick="this.form.status_perpanjangan.value='Ditolak'">
+                                                <i class="bi bi-x-lg"></i>
+                                            </button>
+                                            
+                                            <input type="hidden" name="status_perpanjangan" id="status_input">
+                                        </form>
+                                    <?php else: ?>
+                                        <i class="bi bi-lock-fill text-muted"></i>
+                                    <?php endif; ?>
+                                </td>
+                            </tr>
+                        <?php endwhile; ?>
+                    <?php else: ?>
+                        <tr><td colspan="6" class="text-center py-4 text-muted">Belum ada pengajuan perpanjangan.</td></tr>
                     <?php endif; ?>
                 </tbody>
             </table>

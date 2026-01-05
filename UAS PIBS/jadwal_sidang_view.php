@@ -5,18 +5,19 @@
     <div class="card-body text-center py-5">
         <?php
         // 1. QUERY DATABASE
-        // Mengambil data sidang mahasiswa yang sedang login ($nim diambil dari dashboard_mhs.php)
-        $q_jadwal = mysqli_query($conn, "SELECT s.*, d.nama as penguji, p.judul 
-                                         FROM sidang s
-                                         JOIN proposal p ON s.id_proposal = p.id_proposal
-                                         LEFT JOIN dosen d ON s.nidn_penguji = d.nidn
-                                         WHERE p.nim = '$nim'");
+        // Tabel: Sidang (s), Proposal (p), Dosen (d)
+        // Join menggunakan idProposal dan NIDN
+        $q_jadwal = mysqli_query($conn, "SELECT s.*, d.Nama as penguji, p.Judul 
+                                         FROM Sidang s
+                                         JOIN Proposal p ON s.idProposal = p.idProposal
+                                         LEFT JOIN Dosen d ON s.NIDN = d.NIDN
+                                         WHERE p.NIM = '$nim'");
         
         // 2. CEK APAKAH ADA DATA SIDANG
-        if (mysqli_num_rows($q_jadwal) > 0) {
+        if ($q_jadwal && mysqli_num_rows($q_jadwal) > 0) {
             $row = mysqli_fetch_assoc($q_jadwal);
             
-            // --- LOGIKA STATUS (YANG ANDA MINTA) ---
+            // --- LOGIKA STATUS ---
             
             // KONDISI 1: JIKA STATUS REVISI
             if ($row['status_sidang'] == 'Revisi') {
@@ -24,10 +25,9 @@
                 echo "<h4 class='fw-bold text-warning'><i class='bi bi-exclamation-triangle-fill'></i> Status: REVISI</h4>";
                 echo "<p>Anda diminta melakukan revisi laporan. Silakan perbaiki dan hubungi dosen penguji.</p>";
                 echo "<hr>";
-                echo "<p class='mb-0 fw-bold'>Nilai Sementara: <span class='badge bg-warning text-dark fs-6'>" . $row['nilai_akhir'] . "</span></p>";
+                echo "<p class='mb-0 fw-bold'>Nilai Sementara: <span class='badge bg-warning text-dark fs-6'>" . ($row['nilai_akhir'] ?? '-') . "</span></p>";
                 echo "</div>";
                 
-                // Opsional: Disini bisa ditambahkan tombol/link upload ulang jika fitur tersedia
             } 
             
             // KONDISI 2: JIKA MENUNGGU JADWAL DARI KOORDINATOR
@@ -39,8 +39,9 @@
                 echo "</div>";
             } 
             
-            // KONDISI 3: JIKA SUDAH LULUS
-            elseif ($row['status_sidang'] == 'Lulus') {
+            // KONDISI 3: JIKA SUDAH LULUS (SELESAI dan Nilai Bagus bisa dianggap Lulus)
+            // Di database baru ENUM('Menunggu Jadwal', 'Dijadwalkan', 'Selesai', 'Lulus', 'Tidak Lulus', 'Revisi')
+            elseif ($row['status_sidang'] == 'Lulus' || ($row['status_sidang'] == 'Selesai' && $row['nilai_akhir'] >= 60)) {
                 echo "<div class='alert alert-success d-inline-block px-5 py-4 shadow-sm'>";
                 echo "<h1 class='display-1 mb-3'><i class='bi bi-trophy-fill text-success'></i></h1>";
                 echo "<h3 class='fw-bold'>SELAMAT! ANDA LULUS</h3>";
@@ -59,11 +60,19 @@
             }
 
             // KONDISI 5: JIKA DIJADWALKAN (NORMAL / AKAN SIDANG)
+            // Bisa status 'Dijadwalkan' atau 'Selesai' tapi belum dinilai
             else {
                 echo "<div class='border rounded p-4 d-inline-block shadow-sm bg-light'>";
                 echo "<h3 class='text-primary fw-bold mb-3'>Sidang Dijadwalkan!</h3>";
-                echo "<h5 class='mb-3'><i class='bi bi-calendar-event'></i> " . date('d F Y', strtotime($row['tanggal_sidang'])) . "</h5>";
-                echo "<h2 class='display-6 fw-bold mb-3'>" . date('H:i', strtotime($row['tanggal_sidang'])) . " WIB</h2>";
+                
+                $tgl_sidang = isset($row['tanggal_sidang']) ? $row['tanggal_sidang'] : null;
+                
+                if ($tgl_sidang) {
+                    echo "<h5 class='mb-3'><i class='bi bi-calendar-event'></i> " . date('d F Y', strtotime($tgl_sidang)) . "</h5>";
+                    echo "<h2 class='display-6 fw-bold mb-3'>" . date('H:i', strtotime($tgl_sidang)) . " WIB</h2>";
+                } else {
+                    echo "<h5 class='text-muted'>Waktu belum ditentukan</h5>";
+                }
                 
                 echo "<div class='d-flex justify-content-center gap-3 mt-4'>";
                 echo "<div class='text-start border-end pe-3'>";
@@ -79,7 +88,7 @@
             }
 
         } else {
-            // 3. JIKA BELUM DAFTAR SAMA SEKALI (DATA TIDAK DITEMUKAN)
+            // 3. JIKA BELUM DAFTAR SAMA SEKALI
             echo "<img src='https://cdn-icons-png.flaticon.com/512/7486/7486744.png' width='100' class='mb-3 opacity-50'>";
             echo "<h5 class='text-muted'>Belum Ada Data Sidang</h5>";
             echo "<p class='small text-secondary'>Silakan ajukan pendaftaran sidang terlebih dahulu pada menu Daftar Sidang.</p>";

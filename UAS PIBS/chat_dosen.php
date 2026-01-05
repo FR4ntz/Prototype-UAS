@@ -4,10 +4,12 @@ $nim = $_SESSION['nim'];
 
 // 1. CEK DOSEN PEMBIMBING (Diperbaiki query-nya)
 // Mengambil data dosen dari proposal yang sudah disetujui
-$cek_pembimbing = mysqli_query($conn, "SELECT p.judul, d.nama AS nama_dosen, d.nidn 
-                                       FROM proposal p 
-                                       JOIN dosen d ON p.nidn_pembimbing = d.nidn 
-                                       WHERE p.nim='$nim' AND p.status='Disetujui' LIMIT 1");
+// Tabel: Proposal, Dosen
+// Kolom: Judul, Nama, NIDN, NIDN_Pembimbing, status_pengajuan
+$cek_pembimbing = mysqli_query($conn, "SELECT p.Judul, d.Nama AS nama_dosen, d.NIDN as nidn 
+                                       FROM Proposal p 
+                                       JOIN Dosen d ON p.NIDN_Pembimbing = d.NIDN 
+                                       WHERE p.NIM='$nim' AND p.status_pengajuan='Disetujui' LIMIT 1");
 $data_dosen = mysqli_fetch_assoc($cek_pembimbing);
 
 // 2. PROSES KIRIM PESAN
@@ -16,8 +18,8 @@ if (isset($_POST['kirim_pesan']) && $data_dosen) {
     $nidn_tujuan = $data_dosen['nidn'];
     $tgl = date('Y-m-d H:i:s');
     
-    // PERBAIKAN: Menggunakan kolom 'isi_pesan' dan 'waktu' sesuai database Anda
-    $query = "INSERT INTO pesan (pengirim, penerima, isi_pesan, waktu) 
+    // Tabel: Pesan (Huruf Besar P)
+    $query = "INSERT INTO Pesan (pengirim, penerima, isi_pesan, waktu) 
               VALUES ('$nim', '$nidn_tujuan', '$pesan', '$tgl')";
               
     if(mysqli_query($conn, $query)){
@@ -45,7 +47,8 @@ if (isset($_POST['kirim_pesan']) && $data_dosen) {
             $nidn_dosen = $data_dosen['nidn'];
             
             // Ambil pesan antara Mahasiswa (Saya) dan Dosen Pembimbing
-            $q_chat = mysqli_query($conn, "SELECT * FROM pesan 
+            // Tabel: Pesan
+            $q_chat = mysqli_query($conn, "SELECT * FROM Pesan 
                                            WHERE (pengirim='$nim' AND penerima='$nidn_dosen') 
                                            OR (pengirim='$nidn_dosen' AND penerima='$nim') 
                                            ORDER BY waktu ASC");
@@ -55,7 +58,7 @@ if (isset($_POST['kirim_pesan']) && $data_dosen) {
                     $jam = date('H:i', strtotime($chat['waktu']));
                     $isi = nl2br(htmlspecialchars($chat['isi_pesan']));
 
-                    // Jika Pengirim == Saya (Mahasiswa) -> Tampil di Kanan (Biru)
+                    // Jika Pengirim == Saya (Mahasiswa) -> Tampil di Kanan (Biru/Hijau)
                     if($chat['pengirim'] == $nim) {
                         echo "
                         <div class='msg-container'>
