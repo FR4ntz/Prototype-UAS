@@ -6,7 +6,7 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] != 'Koordinator') {
 }
 
 // ==============================================================================
-// 1. LOGIKA TAMBAH DATA MAHASISWA
+// 1. LOGIKA TAMBAH MAHASISWA (CREATE)
 // ==============================================================================
 if (isset($_POST['simpan_mhs'])) {
     $nim  = mysqli_real_escape_string($conn, $_POST['nim']);
@@ -15,12 +15,10 @@ if (isset($_POST['simpan_mhs'])) {
     $sks  = (int) $_POST['sks'];
     $jsdp = (int) $_POST['jsdp'];
     
-    // Cek NIM (Tabel Mahasiswa, Kolom NIM)
     $cek = mysqli_query($conn, "SELECT NIM FROM Mahasiswa WHERE NIM='$nim'");
     if (mysqli_num_rows($cek) > 0) {
         echo "<script>alert('Gagal: NIM sudah terdaftar!');</script>";
     } else {
-        // Insert (Kolom: NIM, Nama, Password, Total_SKS, Total_JSDP)
         $query = "INSERT INTO Mahasiswa (NIM, Nama, Password, Total_SKS, Total_JSDP) VALUES ('$nim', '$nama', '$pass', '$sks', '$jsdp')";
         if(mysqli_query($conn, $query)){
             echo "<script>alert('Mahasiswa berhasil ditambahkan!'); window.location='dashboard_dosen.php?page=mahasiswa';</script>";
@@ -31,36 +29,62 @@ if (isset($_POST['simpan_mhs'])) {
 }
 
 // ==============================================================================
-// 2. LOGIKA HAPUS DATA (FIX RELASI & NAMA TABEL)
+// 2. LOGIKA UPDATE MAHASISWA (UPDATE)
+// ==============================================================================
+if (isset($_POST['update_mhs'])) {
+    $nim_asli = mysqli_real_escape_string($conn, $_POST['nim_asli']);
+    $nama_baru = mysqli_real_escape_string($conn, $_POST['nama']);
+    $sks_baru  = (int) $_POST['sks'];
+    $jsdp_baru = (int) $_POST['jsdp'];
+
+    $sql_pass = "";
+    if (!empty($_POST['password_baru'])) {
+        $pass_hash = md5($_POST['password_baru']);
+        $sql_pass = ", Password='$pass_hash'";
+    }
+
+    $q_update = "UPDATE Mahasiswa SET Nama='$nama_baru', Total_SKS='$sks_baru', Total_JSDP='$jsdp_baru' $sql_pass WHERE NIM='$nim_asli'";
+
+    if (mysqli_query($conn, $q_update)) {
+        echo "<script>alert('Data mahasiswa berhasil diperbarui!'); window.location='dashboard_dosen.php?page=mahasiswa';</script>";
+    } else {
+        echo "<script>alert('Gagal Update: ".mysqli_error($conn)."');</script>";
+    }
+}
+
+// ==============================================================================
+// 3. LOGIKA HAPUS MAHASISWA (DELETE)
 // ==============================================================================
 if (isset($_POST['hapus_mhs'])) {
     $nim_hapus = mysqli_real_escape_string($conn, $_POST['nim_hapus']);
     
-    // TAHAP 1: Hapus Bimbingan (Tabel Bimbingan, Kolom NIM)
     mysqli_query($conn, "DELETE FROM Bimbingan WHERE NIM='$nim_hapus'");
+    mysqli_query($conn, "DELETE FROM Pesan WHERE pengirim='$nim_hapus' OR penerima='$nim_hapus'");
 
-    // TAHAP 2: Hapus Sidang (Cari idProposal dulu di tabel Proposal)
     $q_prop = mysqli_query($conn, "SELECT idProposal FROM Proposal WHERE NIM='$nim_hapus'");
     while($p = mysqli_fetch_assoc($q_prop)){
         $id_p = $p['idProposal'];
         mysqli_query($conn, "DELETE FROM Sidang WHERE idProposal='$id_p'");
+        mysqli_query($conn, "DELETE FROM Perpanjangan WHERE id_proposal='$id_p'");
     }
 
-    // TAHAP 3: Hapus Proposal
     mysqli_query($conn, "DELETE FROM Proposal WHERE NIM='$nim_hapus'");
 
-    // TAHAP 4: Hapus Notifikasi (Asumsi kolom nim lowercase di tabel Notifikasi)
-    mysqli_query($conn, "DELETE FROM Notifikasi WHERE nim='$nim_hapus'");
-
-    // TAHAP 5: Hapus Perpanjangan (Asumsi kolom nim lowercase di tabel Perpanjangan)
-    mysqli_query($conn, "DELETE FROM Perpanjangan WHERE nim='$nim_hapus'");
-
-    // TAHAP 6: Hapus Akun Mahasiswa (Induk)
     if(mysqli_query($conn, "DELETE FROM Mahasiswa WHERE NIM='$nim_hapus'")){
-        echo "<script>alert('Data mahasiswa dan seluruh riwayatnya BERHASIL dihapus.'); window.location='dashboard_dosen.php?page=mahasiswa';</script>";
+        echo "<script>alert('Data mahasiswa BERHASIL dihapus.'); window.location='dashboard_dosen.php?page=mahasiswa';</script>";
     } else {
-        echo "<script>alert('Masih Gagal Hapus: ".mysqli_error($conn)."');</script>";
+        echo "<script>alert('Gagal Hapus: ".mysqli_error($conn)."');</script>";
     }
+}
+
+// ==============================================================================
+// 4. AMBIL SEMUA DATA DULU (SIMPAN DI ARRAY)
+// ==============================================================================
+// Ini teknik agar kita bisa memisahkan Tabel dan Modal
+$data_mahasiswa = [];
+$q_mhs = mysqli_query($conn, "SELECT * FROM Mahasiswa ORDER BY NIM ASC");
+while($r = mysqli_fetch_assoc($q_mhs)){
+    $data_mahasiswa[] = $r;
 }
 ?>
 
@@ -72,11 +96,11 @@ if (isset($_POST['hapus_mhs'])) {
             </div>
             <div class="card-body">
                 <form method="POST" class="row g-3">
-                    <div class="col-md-6">
+                    <div class="col-md-3">
                         <label class="form-label small fw-bold">NIM</label>
                         <input type="text" name="nim" class="form-control" placeholder="Cth: 2021001" required>
                     </div>
-                    <div class="col-md-6">
+                    <div class="col-md-5">
                         <label class="form-label small fw-bold">Nama Lengkap</label>
                         <input type="text" name="nama" class="form-control" placeholder="Nama Mahasiswa" required>
                     </div>
@@ -84,16 +108,16 @@ if (isset($_POST['hapus_mhs'])) {
                         <label class="form-label small fw-bold">Password Default</label>
                         <input type="text" name="password" class="form-control" value="123456" required>
                     </div>
-                    <div class="col-md-4">
+                    <div class="col-md-6">
                         <label class="form-label small fw-bold">Total SKS Awal</label>
                         <input type="number" name="sks" class="form-control" value="0" min="0" required>
                     </div>
-                    <div class="col-md-4">
+                    <div class="col-md-6">
                         <label class="form-label small fw-bold">Poin JSDP Awal</label>
                         <input type="number" name="jsdp" class="form-control" value="0" min="0" required>
                     </div>
                     <div class="col-12 mt-4">
-                        <button type="submit" name="simpan_mhs" class="btn btn-success fw-bold px-4">
+                        <button type="submit" name="simpan_mhs" class="btn btn-success fw-bold px-4 w-100">
                             <i class="bi bi-save me-2"></i> Simpan Data Mahasiswa
                         </button>
                     </div>
@@ -106,7 +130,7 @@ if (isset($_POST['hapus_mhs'])) {
         <div class="card shadow-sm border-0">
             <div class="card-header bg-white fw-bold d-flex justify-content-between align-items-center py-3">
                 <span><i class="bi bi-people-fill text-primary me-2"></i> Data Mahasiswa Terdaftar</span>
-                <span class="badge bg-secondary">Total: <?= mysqli_num_rows(mysqli_query($conn, "SELECT NIM FROM Mahasiswa")) ?></span>
+                <span class="badge bg-secondary">Total: <?= count($data_mahasiswa) ?></span>
             </div>
             <div class="card-body p-0">
                 <div class="table-responsive" style="max-height: 600px; overflow-y: auto;">
@@ -121,33 +145,40 @@ if (isset($_POST['hapus_mhs'])) {
                             </tr>
                         </thead>
                         <tbody>
-                            <?php
-                            $mhs = mysqli_query($conn, "SELECT * FROM Mahasiswa ORDER BY NIM ASC");
-                            if(mysqli_num_rows($mhs) > 0):
-                                while($row = mysqli_fetch_array($mhs)):
-                            ?>
-                            <tr>
-                                <td class="ps-4 fw-bold"><?= $row['NIM'] ?></td>
-                                <td><?= $row['Nama'] ?></td>
-                                <td class="text-center">
-                                    <span class="badge <?= ($row['Total_SKS']>=120)?'bg-success':'bg-warning text-dark' ?>">
-                                        <?= $row['Total_SKS'] ?>
-                                    </span>
-                                </td>
-                                <td class="text-center"><?= $row['Total_JSDP'] ?></td>
-                                <td class="text-center">
-                                    <form method="POST" onsubmit="return confirm('PERINGATAN: Menghapus mahasiswa ini akan MENGHAPUS SEMUA DATA riwayatnya (Proposal, Bimbingan, Sidang, Perpanjangan). Lanjutkan?');">
-                                        <input type="hidden" name="nim_hapus" value="<?= $row['NIM'] ?>">
-                                        <button type="submit" name="hapus_mhs" class="btn btn-danger btn-sm py-1 px-2" title="Hapus Permanen">
-                                            <i class="bi bi-trash-fill"></i>
-                                        </button>
-                                    </form>
-                                </td>
-                            </tr>
-                            <?php 
-                                endwhile; 
-                            else:
-                            ?>
+                            <?php if(count($data_mahasiswa) > 0): ?>
+                                <?php foreach($data_mahasiswa as $row): 
+                                    $modalEditID = "editMhs" . $row['NIM'];
+                                ?>
+                                <tr>
+                                    <td class="ps-4 fw-bold"><?= $row['NIM'] ?></td>
+                                    <td><?= $row['Nama'] ?></td>
+                                    <td class="text-center">
+                                        <span class="badge <?= ($row['Total_SKS']>=120)?'bg-success':'bg-warning text-dark' ?>">
+                                            <?= $row['Total_SKS'] ?>
+                                        </span>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="badge <?= ($row['Total_JSDP']>=600)?'bg-success':'bg-secondary' ?>">
+                                            <?= $row['Total_JSDP'] ?>
+                                        </span>
+                                    </td>
+                                    <td class="text-center">
+                                        <div class="d-flex justify-content-center gap-1">
+                                            <button type="button" class="btn btn-warning btn-sm py-1 px-2" data-bs-toggle="modal" data-bs-target="#<?= $modalEditID ?>" title="Edit Data">
+                                                <i class="bi bi-pencil-square"></i>
+                                            </button>
+
+                                            <form method="POST" onsubmit="return confirm('PERINGATAN: Menghapus mahasiswa ini akan MENGHAPUS SEMUA DATA riwayatnya. Lanjutkan?');">
+                                                <input type="hidden" name="nim_hapus" value="<?= $row['NIM'] ?>">
+                                                <button type="submit" name="hapus_mhs" class="btn btn-danger btn-sm py-1 px-2" title="Hapus Permanen">
+                                                    <i class="bi bi-trash-fill"></i>
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </td>
+                                </tr>
+                                <?php endforeach; ?>
+                            <?php else: ?>
                                 <tr><td colspan="5" class="text-center py-5 text-muted">Belum ada data mahasiswa.</td></tr>
                             <?php endif; ?>
                         </tbody>
@@ -157,3 +188,49 @@ if (isset($_POST['hapus_mhs'])) {
         </div>
     </div>
 </div>
+
+<?php foreach($data_mahasiswa as $row): 
+    $modalEditID = "editMhs" . $row['NIM'];
+?>
+<div class="modal fade" id="<?= $modalEditID ?>" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-warning">
+                <h6 class="modal-title fw-bold">Edit Mahasiswa: <?= $row['NIM'] ?></h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST">
+                <div class="modal-body text-start">
+                    <input type="hidden" name="nim_asli" value="<?= $row['NIM'] ?>">
+                    
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Nama Lengkap</label>
+                        <input type="text" name="nama" class="form-control" value="<?= $row['Nama'] ?>" required>
+                    </div>
+                    
+                    <div class="row g-2">
+                        <div class="col-6">
+                            <label class="form-label small fw-bold">Total SKS</label>
+                            <input type="number" name="sks" class="form-control" value="<?= $row['Total_SKS'] ?>" min="0" required>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label small fw-bold">Poin JSDP</label>
+                            <input type="number" name="jsdp" class="form-control" value="<?= $row['Total_JSDP'] ?>" min="0" required>
+                        </div>
+                    </div>
+
+                    <hr>
+                    <div class="mb-2">
+                        <label class="form-label small fw-bold text-danger">Reset Password (Opsional)</label>
+                        <input type="text" name="password_baru" class="form-control form-control-sm" placeholder="Isi hanya jika ingin mereset password">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" name="update_mhs" class="btn btn-primary btn-sm fw-bold px-4">Simpan Perubahan</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+<?php endforeach; ?>

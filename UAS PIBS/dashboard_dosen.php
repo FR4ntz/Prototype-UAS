@@ -4,7 +4,7 @@ include 'koneksi.php';
 
 // 1. CEK KEAMANAN AKSES
 if (!isset($_SESSION['role']) || 
-   ($_SESSION['role'] != 'Dosen' && $_SESSION['role'] != 'Koordinator' && $_SESSION['role'] != 'Penguji')) {
+   (!in_array($_SESSION['role'], ['Dosen', 'Koordinator', 'Penguji']))) {
     header("Location: index.php"); 
     exit; 
 }
@@ -14,56 +14,80 @@ $role = $_SESSION['role'];
 $nama = $_SESSION['user'];
 
 // ==============================================================================
-// 2. LOGIKA UPDATE STATUS BACA CHAT (Untuk Dosen Pembimbing)
+// 2. QUERY DATA TAMPILAN (HEADER, FOOTER, SIDEBAR, KONTEN)
 // ==============================================================================
-if (isset($_GET['page']) && $_GET['page'] == 'chat' && isset($_GET['nim'])) {
-    $pengirim = mysqli_real_escape_string($conn, $_GET['nim']);
-    // Update tabel Pesan (Huruf Besar)
-    mysqli_query($conn, "UPDATE Pesan SET is_read=1 WHERE pengirim='$pengirim' AND penerima='$nidn'");
+
+// A. IDENTITAS WEB
+$q_web = mysqli_query($conn, "SELECT * FROM konfig_web LIMIT 1");
+$web = mysqli_fetch_assoc($q_web);
+
+// B. KONTEN BERITA (Agar sama dengan Mahasiswa)
+$q_konten = mysqli_query($conn, "SELECT * FROM konten_publik ORDER BY tanggal DESC");
+
+// C. WIDGET ASIDE
+$q_deadline = mysqli_query($conn, "SELECT * FROM deadline ORDER BY tanggal ASC");
+$q_doc = mysqli_query($conn, "SELECT * FROM dokumen_publik");
+$q_periode = mysqli_query($conn, "SELECT * FROM periode_aktif LIMIT 1");
+$periode = mysqli_fetch_assoc($q_periode);
+
+// ==============================================================================
+// 3. FUNGSI QUERY AMAN (ANTI ERROR TABLE NOT FOUND)
+// ==============================================================================
+function query_aman($conn, $query_utama, $query_cadangan) {
+    $hasil = @mysqli_query($conn, $query_utama);
+    if (!$hasil) {
+        $hasil = @mysqli_query($conn, $query_cadangan);
+    }
+    return ($hasil) ? mysqli_num_rows($hasil) : 0;
 }
 
 // ==============================================================================
-// 3. HITUNG STATISTIK & NOTIFIKASI
+// 4. HITUNG STATISTIK (DIGUNAKAN UNTUK BADGE MENU)
 // ==============================================================================
-$jml_bim_pending = 0;
-$jml_prop_baru   = 0;
-$jml_sidang_baru = 0;
-$jml_pesan_baru  = 0;
-$jml_extend_pending = 0;
+$jml_bim_pending   = 0;
+$jml_prop_baru     = 0;
+$jml_sidang_baru   = 0;
+$jml_pesan_baru    = 0;
 $jml_ujian_pending = 0;
+$jml_extend_pending = 0; // <--- PERBAIKAN: Variabel ini sebelumnya lupa didefinisikan
 
 if ($role == 'Dosen') {
-    // Statistik Dosen Pembimbing
-    // Tabel: Bimbingan, Kolom: NIDN (Pengganti nidn_pembimbing), Status
-    $query_bim = mysqli_query($conn, "SELECT * FROM Bimbingan WHERE NIDN='$nidn' AND Status='Menunggu'");
-    $jml_bim_pending = mysqli_num_rows($query_bim);
-
-    // Tabel: Pesan
-    $query_pesan = mysqli_query($conn, "SELECT * FROM Pesan WHERE penerima='$nidn' AND is_read=0");
-    if($query_pesan) $jml_pesan_baru = mysqli_num_rows($query_pesan);
+    // Cek Bimbingan (Coba Huruf Besar & Kecil)
+    $jml_bim_pending = query_aman($conn, 
+        "SELECT * FROM Bimbingan WHERE NIDN='$nidn' AND Status='Menunggu'", 
+        "SELECT * FROM bimbingan WHERE nidn_pembimbing='$nidn' AND status='Menunggu'"
+    );
+    // Cek Pesan
+    $jml_pesan_baru = query_aman($conn, 
+        "SELECT * FROM Pesan WHERE penerima='$nidn' AND is_read=0",
+        "SELECT * FROM pesan WHERE penerima='$nidn' AND is_read=0"
+    );
 
 } elseif ($role == 'Koordinator') {
-    // Statistik Koordinator
-    // Tabel: Proposal, Kolom: status_pengajuan (Pengganti status)
-    $query_prop = mysqli_query($conn, "SELECT * FROM Proposal WHERE status_pengajuan='Diajukan'");
-    $jml_prop_baru = mysqli_num_rows($query_prop);
-    
-    // Tabel: Sidang
-    $query_sidang = @mysqli_query($conn, "SELECT * FROM Sidang WHERE status_sidang='Menunggu Jadwal'");
-    if($query_sidang) $jml_sidang_baru = mysqli_num_rows($query_sidang);
-
-    // Tabel: Perpanjangan
-    $query_ext = @mysqli_query($conn, "SELECT * FROM Perpanjangan WHERE status_perpanjangan='Diajukan'");
-    if ($query_ext) $jml_extend_pending = mysqli_num_rows($query_ext);
+    // Cek Proposal
+    $jml_prop_baru = query_aman($conn, 
+        "SELECT * FROM Proposal WHERE status_pengajuan='Diajukan'",
+        "SELECT * FROM proposal WHERE status_pengajuan='Diajukan'"
+    );
+    // Cek Sidang
+    $jml_sidang_baru = query_aman($conn, 
+        "SELECT * FROM Sidang WHERE status_sidang='Menunggu Jadwal'",
+        "SELECT * FROM sidang WHERE status_sidang='Menunggu Jadwal'"
+    );
+    // Cek Extend (Perpanjangan) - PERBAIKAN: Menambahkan Query Ini
+    $jml_extend_pending = query_aman($conn,
+        "SELECT * FROM Perpanjangan WHERE status_perpanjangan='Diajukan'",
+        "SELECT * FROM perpanjangan WHERE status_perpanjangan='Diajukan'"
+    );
 
 } elseif ($role == 'Penguji') {
-    // Statistik Penguji
-    // Tabel: Sidang, Kolom: NIDN (Pengganti nidn_penguji)
-    $query_ujian = mysqli_query($conn, "SELECT * FROM Sidang WHERE NIDN='$nidn' AND status_sidang='Dijadwalkan'");
-    if($query_ujian) $jml_ujian_pending = mysqli_num_rows($query_ujian);
+    // Cek Jadwal Ujian
+    $jml_ujian_pending = query_aman($conn, 
+        "SELECT * FROM Sidang WHERE NIDN='$nidn' AND status_sidang='Dijadwalkan'",
+        "SELECT * FROM sidang WHERE nidn_penguji='$nidn' AND status_sidang='Dijadwalkan'"
+    );
 }
 
-// 4. LOGIKA HALAMAN DINAMIS
 $page = isset($_GET['page']) ? $_GET['page'] : 'home';
 ?>
 
@@ -72,10 +96,14 @@ $page = isset($_GET['page']) ? $_GET['page'] : 'home';
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard Staff - SITA UPJ</title>
+    <title>Dashboard Staff - <?= $web['nama_web'] ?></title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
     <link rel="stylesheet" href="style.css">
+    <style>
+        .card-img-top-placeholder { height: 180px; background: #e9ecef; display: flex; align-items: center; justify-content: center; color: #adb5bd; }
+        .author-badge { font-size: 0.75rem; padding: 5px 10px; border-radius: 20px; font-weight: 600; }
+    </style>
 </head>
 <body>
 
@@ -84,8 +112,8 @@ $page = isset($_GET['page']) ? $_GET['page'] : 'home';
             <div class="d-flex align-items-center">
                 <i class="bi bi-building-fill fs-3 me-3"></i>
                 <div>
-                    <h5 class="m-0 fw-bold">SITA - STAFF PANEL</h5>
-                    <small style="opacity: 0.9;">Portal Dosen & Koordinator</small>
+                    <h5 class="m-0 fw-bold"><?= $web['nama_web'] ?> - STAFF</h5>
+                    <small style="opacity: 0.9;"><?= $web['slogan'] ?></small>
                 </div>
             </div>
             <div class="d-flex align-items-center">
@@ -154,6 +182,9 @@ $page = isset($_GET['page']) ? $_GET['page'] : 'home';
                                 <a class="nav-link <?= ($page=='mahasiswa')?'active':'' ?>" href="dashboard_dosen.php?page=mahasiswa">
                                     <i class="bi bi-person-lines-fill me-2"></i> Master Mahasiswa
                                 </a>
+                                <a class="nav-link <?= ($page=='konten')?'active':'' ?>" href="dashboard_dosen.php?page=konten">
+                                    <i class="bi bi-newspaper me-2"></i> Kelola Berita (CMS)
+                                </a>
 
                                 <div class="text-muted small fw-bold mt-3 ms-2 mb-1">KOORDINATOR TA</div>
                                 <a class="nav-link <?= ($page=='proposal')?'active':'' ?>" href="dashboard_dosen.php?page=proposal">
@@ -184,96 +215,96 @@ $page = isset($_GET['page']) ? $_GET['page'] : 'home';
                 <?php 
                 switch ($page) {
                     case 'home':
-                        // === DASHBOARD HOME ===
                         ?>
                         <div class="alert alert-success shadow-sm border-0 d-flex align-items-center mb-4" role="alert" style="background: linear-gradient(135deg, #198754, #146c43); color: white;">
                             <i class="bi bi-person-badge-fill fs-1 me-3 opacity-50"></i>
                             <div>
                                 <h4 class="alert-heading fw-bold mb-1">Selamat Datang!</h4>
-                                <p class="mb-0 small opacity-90">Anda login sebagai <strong><?= $role ?></strong>. Kelola aktivitas akademik di sini.</p>
+                                <p class="mb-0 small opacity-90">Anda login sebagai <strong><?= $role ?></strong>. Selamat bekerja.</p>
                             </div>
                         </div>
 
-                        <div class="row g-3 mb-4">
-                            <?php if($role == 'Penguji'): ?>
-                                <div class="col-12">
-                                    <div class="card shadow-sm h-100">
-                                        <div class="card-body border-start border-4 border-danger">
-                                            <h6 class="text-muted text-uppercase small fw-bold">Jadwal Menguji</h6>
-                                            <div class="d-flex align-items-center justify-content-between mt-2">
-                                                <h2 class="mb-0 fw-bold text-danger"><?= $jml_ujian_pending ?></h2>
-                                                <i class="bi bi-mortarboard-fill fs-1 text-black-50"></i>
-                                            </div>
-                                            <a href="dashboard_dosen.php?page=ujian" class="stretched-link small text-decoration-none mt-2 d-block text-danger">Lihat Jadwal & Nilai &rarr;</a>
-                                        </div>
-                                    </div>
-                                </div>
-                            <?php endif; ?>
+                        <div class="row g-4">
+                            <?php if($q_konten && mysqli_num_rows($q_konten) > 0): ?>
+                                <?php while($berita = mysqli_fetch_assoc($q_konten)): ?>
+                                    <div class="col-md-6">
+                                        <div class="card h-100 border-0 shadow-sm rounded-4 overflow-hidden">
+                                            <?php 
+                                                $path_gambar = 'assets/img/' . ($berita['gambar'] ?? '');
+                                                if (!empty($berita['gambar']) && file_exists($path_gambar)) {
+                                                    echo "<img src='$path_gambar' class='card-img-top' style='height: 180px; object-fit: cover;' alt='Gambar'>";
+                                                } else {
+                                                    echo "<div class='card-img-top-placeholder'><i class='bi bi-image fs-1'></i></div>";
+                                                }
+                                            ?>
+                                            
+                                            <div class="card-body d-flex flex-column p-4">
+                                                <h6 class="fw-bold mb-3"><?= htmlspecialchars($berita['judul']) ?></h6>
+                                                
+                                                <div class="mb-3">
+                                                    <span class="badge bg-light text-secondary border rounded-pill px-2 me-1">
+                                                        <i class="bi bi-calendar-event"></i> <?= date('d M Y', strtotime($berita['tanggal'])) ?>
+                                                    </span>
+                                                    <span class="badge bg-<?= $berita['warna_badge'] ?> rounded-pill px-2">
+                                                        <i class="bi bi-person"></i> <?= $berita['penulis'] ?>
+                                                    </span>
+                                                </div>
 
-                            <?php if($role == 'Dosen'): ?>
-                                <div class="col-md-6">
-                                    <div class="card shadow-sm h-100">
-                                        <div class="card-body border-start border-4 border-primary">
-                                            <h6 class="text-muted text-uppercase small fw-bold">Bimbingan Pending</h6>
-                                            <div class="d-flex align-items-center justify-content-between mt-2">
-                                                <h2 class="mb-0 fw-bold text-primary"><?= $jml_bim_pending ?></h2>
-                                                <i class="bi bi-person-video3 fs-1 text-black-50"></i>
-                                            </div>
-                                            <a href="dashboard_dosen.php?page=bimbingan" class="stretched-link small text-decoration-none mt-2 d-block">Tinjau Logbook &rarr;</a>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="col-md-6">
-                                    <div class="card shadow-sm h-100">
-                                        <div class="card-body border-start border-4 border-info">
-                                            <h6 class="text-muted text-uppercase small fw-bold">Pesan Masuk</h6>
-                                            <div class="d-flex align-items-center justify-content-between mt-2">
-                                                <h2 class="mb-0 fw-bold text-info"><?= $jml_pesan_baru ?></h2>
-                                                <i class="bi bi-chat-left-text fs-1 text-black-50"></i>
-                                            </div>
-                                            <a href="dashboard_dosen.php?page=chat" class="stretched-link small text-decoration-none mt-2 d-block text-info">Buka Chat &rarr;</a>
-                                        </div>
-                                    </div>
-                                </div>
-                            <?php endif; ?>
+                                                <p class="text-secondary small mb-4 flex-grow-1" style="display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;">
+                                                    <?= strip_tags($berita['deskripsi']) ?>
+                                                </p>
 
-                            <?php if($role == 'Koordinator'): ?>
-                                <div class="col-md-6">
-                                    <div class="card shadow-sm h-100">
-                                        <div class="card-body border-start border-4 border-success">
-                                            <h6 class="text-muted text-uppercase small fw-bold">Total Dosen</h6>
-                                            <div class="d-flex align-items-center justify-content-between mt-2">
-                                                <h2 class="mb-0 fw-bold text-success">
-                                                    <?php 
-                                                    // Perbaikan nama tabel & kolom
-                                                    $q_dosen = mysqli_query($conn, "SELECT NIDN FROM Dosen WHERE Role='Dosen'");
-                                                    echo ($q_dosen) ? mysqli_num_rows($q_dosen) : 0;
-                                                    ?>
-                                                </h2>
-                                                <i class="bi bi-person-badge fs-1 text-black-50"></i>
+                                                <div class="mt-auto text-end">
+                                                    <a href="dashboard_dosen.php?page=detail_berita&id=<?= $berita['id'] ?>" class="text-primary text-decoration-none fw-bold small">
+                                                        Detail Informasi <i class="bi bi-arrow-right ms-1"></i>
+                                                    </a>
+                                                </div>
                                             </div>
-                                            <a href="dashboard_dosen.php?page=master_dosen" class="stretched-link small text-decoration-none text-success mt-2 d-block">Kelola Akun &rarr;</a>
                                         </div>
                                     </div>
-                                </div>
-                                <div class="col-md-6">
-                                    <div class="card shadow-sm h-100">
-                                        <div class="card-body border-start border-4 border-warning">
-                                            <h6 class="text-muted text-uppercase small fw-bold">Proposal Masuk</h6>
-                                            <div class="d-flex align-items-center justify-content-between mt-2">
-                                                <h2 class="mb-0 fw-bold text-warning"><?= $jml_prop_baru ?></h2>
-                                                <i class="bi bi-file-earmark-plus fs-1 text-black-50"></i>
-                                            </div>
-                                            <a href="dashboard_dosen.php?page=proposal" class="stretched-link small text-decoration-none text-warning mt-2 d-block">Verifikasi &rarr;</a>
-                                        </div>
-                                    </div>
-                                </div>
+                                <?php endwhile; ?>
+                            <?php else: ?>
+                                <div class="col-12"><div class="alert alert-info">Belum ada berita terbaru.</div></div>
                             <?php endif; ?>
                         </div>
                         <?php
                         break;
 
-                    // ROUTING HALAMAN
+                    // HALAMAN DETAIL BERITA
+                    case 'detail_berita':
+                        $id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
+                        $q_detail = mysqli_query($conn, "SELECT * FROM konten_publik WHERE id='$id'");
+                        
+                        if ($berita = mysqli_fetch_assoc($q_detail)): ?>
+                            <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+                                <?php 
+                                    $path_gambar = 'assets/img/' . ($berita['gambar'] ?? '');
+                                    if (!empty($berita['gambar']) && file_exists($path_gambar)): ?>
+                                    <div class="position-relative" style="height: 300px;">
+                                        <img src="<?= $path_gambar ?>" class="w-100 h-100" style="object-fit: cover;">
+                                        <div class="position-absolute bottom-0 start-0 w-100 p-4" style="background: linear-gradient(to top, rgba(0,0,0,0.8), transparent);">
+                                            <h2 class="text-white fw-bold"><?= $berita['judul'] ?></h2>
+                                        </div>
+                                    </div>
+                                <?php endif; ?>
+
+                                <div class="card-body p-4 p-md-5">
+                                    <div class="mb-4 text-muted small">
+                                        <i class="bi bi-calendar"></i> <?= $berita['tanggal'] ?> | <i class="bi bi-person"></i> <?= $berita['penulis'] ?>
+                                    </div>
+                                    <article class="lh-lg text-secondary">
+                                        <?= nl2br(htmlspecialchars($berita['deskripsi'])) ?>
+                                    </article>
+                                    <hr class="my-5">
+                                    <a href="dashboard_dosen.php" class="btn btn-outline-secondary rounded-pill"><i class="bi bi-arrow-left"></i> Kembali</a>
+                                </div>
+                            </div>
+                        <?php else: ?>
+                            <div class="alert alert-warning">Berita tidak ditemukan.</div>
+                        <?php endif;
+                        break;
+
+                    // ROUTING LAINNYA
                     case 'bimbingan': include 'kelola_bimbingan.php'; break;
                     case 'chat':      include 'chat_dosen_view.php'; break;
                     case 'proposal':  include 'admin_proposal.php'; break;
@@ -281,46 +312,73 @@ $page = isset($_GET['page']) ? $_GET['page'] : 'home';
                     case 'extend':    include 'admin_perpanjangan.php'; break;
                     case 'mahasiswa': include 'admin_mahasiswa.php'; break;
                     case 'master_dosen': include 'admin_dosen.php'; break;
-                    
-                    // ROUTING BARU UNTUK PENGUJI
                     case 'ujian':     include 'dosen_ujian.php'; break;
+                    case 'konten':    include 'admin_konten.php'; break;
 
                     default: echo "<div class='alert alert-danger'>Halaman tidak ditemukan!</div>"; break;
                 }
                 ?>
             </div>
 
-            <div class="col-lg-3">
-                <div class="card bg-dark text-white mb-3">
-                    <div class="card-header bg-dark border-bottom border-secondary fw-bold">
-                        <i class="bi bi-calendar-event"></i> Agenda Akademik
+            <div class="col-lg-3 mb-4">
+                
+                <div class="card shadow-sm border-0 mb-3 overflow-hidden">
+                    <div class="card-header text-white fw-bold py-3" style="background-color: #dc3545;">
+                        <i class="bi bi-alarm-fill me-2"></i> Deadline Penting
                     </div>
-                    <ul class="list-group list-group-flush small bg-dark">
-                        <li class="list-group-item bg-dark text-white-50 border-secondary">
-                            <strong>15 - 20 Sep</strong><br> Pengajuan Proposal
-                        </li>
-                        <li class="list-group-item bg-dark text-white-50 border-secondary">
-                            <strong>05 Nov 2025</strong><br> Sidang Periode 1
-                        </li>
+                    <ul class="list-group list-group-flush small">
+                        <?php while($d = mysqli_fetch_assoc($q_deadline)): ?>
+                            <li class="list-group-item py-2" style="background-color: <?= $d['warna_bg'] ?>;">
+                                <?php 
+                                    $icon_color = ($d['kategori'] == 'revisi') ? 'text-warning' : 'text-primary';
+                                    $icon_type = ($d['kategori'] == 'revisi') ? 'bi-exclamation-circle-fill' : 'bi-calendar-event';
+                                ?>
+                                <strong><i class="bi <?= $icon_type ?> <?= $icon_color ?> me-1"></i> <?= $d['judul'] ?>:</strong> 
+                                <br><span class="ms-4"><?= date('d M Y', strtotime($d['tanggal'])) ?></span>
+                            </li>
+                        <?php endwhile; ?>
                     </ul>
                 </div>
 
-                <div class="card">
-                    <div class="card-header fw-bold bg-light">Aksi Cepat</div>
-                    <div class="card-body d-grid gap-2">
-                         <a href="#" class="btn btn-outline-primary btn-sm text-start"><i class="bi bi-cloud-download me-2"></i> Download Panduan TA</a>
-                         <a href="#" class="btn btn-outline-primary btn-sm text-start"><i class="bi bi-printer me-2"></i> Cetak Berita Acara</a>
+                <div class="card shadow-sm border-0 mb-3">
+                    <div class="card-header bg-white fw-bold py-3">
+                        <i class="bi bi-folder2-open me-2 text-primary"></i> Dokumen Publik
+                    </div>
+                    <div class="list-group list-group-flush small">
+                        <?php while($doc = mysqli_fetch_assoc($q_doc)): ?>
+                            <a href="<?= $doc['link_file'] ?>" class="list-group-item list-group-item-action py-2">
+                                <?= $doc['nama_doc'] ?> <i class="bi bi-download float-end text-muted"></i>
+                            </a>
+                        <?php endwhile; ?>
                     </div>
                 </div>
+
+                <div class="card shadow-sm border-0">
+                    <div class="card-body text-center py-4">
+                        <h6 class="fw-bold text-muted mb-1"><?= $periode['nama_periode'] ?? 'Periode Akademik' ?></h6>
+                        <h1 class="display-3 fw-bold text-primary mb-0" style="letter-spacing: -2px;"><?= date('d') ?></h1>
+                        <span class="text-uppercase fw-bold text-secondary ls-1"><?= date('F Y') ?></span>
+                    </div>
+                </div>
+
             </div>
 
         </div>
     </div>
-    
-    <footer class="text-center py-3 mt-4" style="background: #157347;">
+
+    <footer class="text-center py-4 bg-dark text-white mt-auto">
         <div class="container">
-            <h6 class="fw-bold mb-2 text-white">Universitas Pembangunan Jaya</h6>
-            <small class="d-block text-white-50">&copy; 2025 Kelompok Sistem Informasi.</small>
+            <h6 class="fw-bold mb-2"><?= $web['nama_web'] ?> - Universitas Pembangunan Jaya</h6>
+            <small class="d-block text-white-50"><?= $web['alamat'] ?></small>
+            
+            <div class="social-links mt-3">
+                <a href="<?= $web['fb_link'] ?>" class="text-white mx-2"><i class="bi bi-facebook"></i></a>
+                <a href="<?= $web['ig_link'] ?>" class="text-white mx-2"><i class="bi bi-instagram"></i></a>
+                <a href="<?= $web['tw_link'] ?>" class="text-white mx-2"><i class="bi bi-twitter-x"></i></a>
+            </div>
+
+            <hr class="border-light opacity-25 my-3">
+            <small class="d-block text-white-50">&copy; <?= $web['copyright'] ?>. All Rights Reserved.</small>
         </div>
     </footer>
 

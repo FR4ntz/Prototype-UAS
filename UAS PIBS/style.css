@@ -318,24 +318,81 @@ footer a:hover {
     transform: translateY(-3px);
 }
 
+
 /* =========================================
-   9. RESPONSIVE & ANIMATIONS
+   9. RESPONSIVE LAYOUT (TABLET & MOBILE)
    ========================================= */
-@media (max-width: 768px) {
+
+/* KHUSUS TABLET & IPAD AIR LANDSCAPE (Antara 768px sampai 1199px) */
+/* Kita naikkan batas max-width agar mencakup iPad Air (1180px) */
+@media (min-width: 768px) and (max-width: 1199.98px) {
+    
+    /* 1. KONTROL CONTAINER ROW */
+    .container > .row {
+        display: flex;
+        flex-wrap: wrap; /* Izinkan elemen turun ke bawah */
+        justify-content: space-between;
+    }
+
+    /* 2. POSISI MENU (KIRI ATAS) */
+    /* Menggunakan width 30% agar proporsional di layar lebar */
+    .container > .row > .col-lg-3:nth-child(1) {
+        width: 30% !important; 
+        flex: 0 0 auto;
+        order: 1; 
+        margin-bottom: 0;
+    }
+
+    /* 3. POSISI ARTIKEL (KANAN ATAS) */
+    /* Menggunakan width 68% untuk sisa ruang */
+    .container > .row > .col-lg-6:nth-child(2) {
+        width: 68% !important; 
+        flex: 0 0 auto;
+        order: 2; 
+        margin-bottom: 0;
+    }
+
+    /* 4. POSISI ASIDE / WIDGET (BAWAH FULL WIDTH) */
+    .container > .row > .col-lg-3:nth-child(3) {
+        width: 100% !important; 
+        flex: 0 0 auto;
+        order: 3; /* Pindah ke bawah */
+        margin-top: 30px; 
+        margin-bottom: 20px;
+        
+        /* Grid 3 Kolom untuk Widget */
+        display: grid;
+        grid-template-columns: repeat(3, 1fr); 
+        gap: 20px; 
+    }
+
+    /* 5. PERBAIKAN KARTU WIDGET */
+    .container > .row > .col-lg-3:nth-child(3) .card {
+        height: 100%; 
+        margin-bottom: 0 !important; 
+    }
+    
+    .container > .row > .col-lg-3:nth-child(3) .list-group-item {
+        padding: 8px 15px; 
+    }
+}
+
+/* KHUSUS HP (Di bawah 768px) */
+@media (max-width: 767.98px) {
     header { padding: 10px 0; }
     header h5 { font-size: 1.1rem; }
-    .col-lg-3, .col-lg-6 { margin-bottom: 20px; }
+    
+    /* Stack semua vertikal (Tumpuk ke bawah) */
+    .col-lg-3, .col-lg-6 { 
+        width: 100% !important;
+        margin-bottom: 20px; 
+    }
+    
     .msg-ai, .msg-user { max-width: 90%; font-size: 0.9rem; }
-    .nav-link:hover { transform: none; } /* Matikan animasi geser di HP */
-}
-
-@keyframes slideUp {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-
-@keyframes pulse {
-    0% { opacity: 0.5; }
-    50% { opacity: 1; }
-    100% { opacity: 0.5; }
+    .nav-link:hover { transform: none; }
+    
+    /* Widget di HP tetap tumpuk ke bawah */
+    .container > .row > .col-lg-3:nth-child(3) {
+        display: block; 
+    }
 }
