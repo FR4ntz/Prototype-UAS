@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Waktu pembuatan: 28 Des 2025 pada 20.10
+-- Waktu pembuatan: 05 Jan 2026 pada 10.45
 -- Versi server: 10.4.32-MariaDB
 -- Versi PHP: 8.0.30
 
@@ -28,15 +28,30 @@ SET time_zone = "+00:00";
 --
 
 CREATE TABLE `bimbingan` (
-  `id_bimbingan` int(11) NOT NULL,
-  `nim` char(15) DEFAULT NULL,
-  `nidn_pembimbing` char(15) DEFAULT NULL,
-  `tanggal` date DEFAULT NULL,
-  `topik` varchar(255) DEFAULT NULL,
-  `bukti_foto` varchar(255) DEFAULT NULL,
-  `catatan_dosen` text DEFAULT NULL,
-  `status` enum('Menunggu','ACC','Revisi') DEFAULT NULL
+  `idBimbingan` char(13) NOT NULL,
+  `Tanggal` datetime DEFAULT current_timestamp(),
+  `Topik` varchar(100) DEFAULT NULL,
+  `Bukti_Foto` varchar(255) DEFAULT NULL,
+  `Status` enum('Menunggu','ACC','Revisi') DEFAULT 'Menunggu',
+  `Catatan_Dosen` text DEFAULT NULL,
+  `NIM` char(10) NOT NULL,
+  `NIDN` char(10) NOT NULL,
+  `idProposal` char(13) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data untuk tabel `bimbingan`
+--
+
+INSERT INTO `bimbingan` (`idBimbingan`, `Tanggal`, `Topik`, `Bukti_Foto`, `Status`, `Catatan_Dosen`, `NIM`, `NIDN`, `idProposal`) VALUES
+('BIMB-17669768', '2025-12-29 03:54:18', 'wawa', '2024081048_1766976858.png', 'ACC', '', '2024081048', 'DOSEN001', 'PROP-25122931'),
+('BIMB-17669769', '2025-12-29 03:55:24', 'bimbingan 2', '', 'ACC', '', '2024081048', 'DOSEN001', 'PROP-25122931'),
+('BIMB-17669770', '2025-12-29 03:56:41', 'bimbingan 3 ', '', 'ACC', '', '2024081048', 'DOSEN001', 'PROP-25122931'),
+('BIMB-17669771', '2025-12-29 03:58:33', 'bimbingan 4', '2024081048_1766977113.png', 'ACC', '', '2024081048', 'DOSEN001', 'PROP-25122931'),
+('BIMB-17669773', '2025-12-29 04:02:39', 'bimbingan 5', '', 'ACC', '', '2024081048', 'DOSEN001', 'PROP-25122931'),
+('BIMB-17669774', '2025-12-29 04:03:52', 'bimbingan 5', '2024081048_1766977432.png', 'ACC', '', '2024081048', 'DOSEN001', 'PROP-25122931'),
+('BIMB-17669775', '2025-12-29 04:05:11', 'bimbingan 7', '', 'ACC', '', '2024081048', 'DOSEN001', 'PROP-25122931'),
+('BIMB-17669776', '2025-12-29 04:06:44', 'bimbingan 8', '', 'ACC', '', '2024081048', 'DOSEN001', 'PROP-25122931');
 
 -- --------------------------------------------------------
 
@@ -45,22 +60,22 @@ CREATE TABLE `bimbingan` (
 --
 
 CREATE TABLE `dosen` (
-  `nidn` char(15) NOT NULL,
-  `nama` varchar(100) DEFAULT NULL,
-  `email` varchar(100) DEFAULT NULL,
-  `password` varchar(255) DEFAULT NULL,
-  `role` enum('Dosen','Koordinator','Penguji') NOT NULL DEFAULT 'Dosen'
+  `NIDN` char(10) NOT NULL,
+  `Nama` varchar(128) NOT NULL,
+  `Role` enum('Dosen','Koordinator','Penguji') DEFAULT 'Dosen',
+  `Email` varchar(128) DEFAULT NULL,
+  `Password` varchar(255) DEFAULT '202cb962ac59075b964b07152d234b70'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Dumping data untuk tabel `dosen`
 --
 
-INSERT INTO `dosen` (`nidn`, `nama`, `email`, `password`, `role`) VALUES
-('041002', 'Pak Chan', NULL, 'e10adc3949ba59abbe56e057f20f883e', 'Penguji'),
-('041003', 'Pak Cahyono', NULL, 'e10adc3949ba59abbe56e057f20f883e', 'Dosen'),
-('DOSEN001', 'Ibu Pembimbing', 'dosen@upj.ac.id', '202cb962ac59075b964b07152d234b70', 'Dosen'),
-('KOOR001', 'Bpk. Koordinator', 'koor@upj.ac.id', '202cb962ac59075b964b07152d234b70', 'Koordinator');
+INSERT INTO `dosen` (`NIDN`, `Nama`, `Role`, `Email`, `Password`) VALUES
+('041002', 'Pak Chan', 'Penguji', NULL, 'e10adc3949ba59abbe56e057f20f883e'),
+('041003', 'Pak Cahyono', 'Dosen', NULL, '202cb962ac59075b964b07152d234b70'),
+('DOSEN001', 'Ibu Pembimbing', 'Dosen', 'dosen@upj.ac.id', '202cb962ac59075b964b07152d234b70'),
+('KOOR001', 'Bpk. Koordinator', 'Koordinator', 'koor@upj.ac.id', '202cb962ac59075b964b07152d234b70');
 
 -- --------------------------------------------------------
 
@@ -69,21 +84,22 @@ INSERT INTO `dosen` (`nidn`, `nama`, `email`, `password`, `role`) VALUES
 --
 
 CREATE TABLE `mahasiswa` (
-  `nim` char(15) NOT NULL,
-  `nama` varchar(100) DEFAULT NULL,
-  `email` varchar(100) DEFAULT NULL,
-  `password` varchar(255) DEFAULT NULL,
-  `total_sks` int(11) DEFAULT NULL,
-  `jsdp_poin` int(11) DEFAULT NULL
+  `NIM` char(10) NOT NULL,
+  `Nama` varchar(128) NOT NULL,
+  `Total_SKS` tinyint(3) UNSIGNED DEFAULT 0,
+  `Total_JSDP` smallint(5) UNSIGNED DEFAULT 0,
+  `Email` varchar(128) DEFAULT NULL,
+  `Password` varchar(255) DEFAULT '202cb962ac59075b964b07152d234b70'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Dumping data untuk tabel `mahasiswa`
 --
 
-INSERT INTO `mahasiswa` (`nim`, `nama`, `email`, `password`, `total_sks`, `jsdp_poin`) VALUES
-('2024081010', 'Zidane Tirta Nugraha', NULL, '202cb962ac59075b964b07152d234b70', 160, 1000),
-('202408108', 'Laurensius Jovito', NULL, '202cb962ac59075b964b07152d234b70', 160, 10000);
+INSERT INTO `mahasiswa` (`NIM`, `Nama`, `Total_SKS`, `Total_JSDP`, `Email`, `Password`) VALUES
+('2024081010', 'Zidane Tirta Nugraha', 160, 1000, NULL, '202cb962ac59075b964b07152d234b70'),
+('2024081048', 'Raffi Ardiansyah', 120, 600, NULL, '202cb962ac59075b964b07152d234b70'),
+('202408108', 'Laurensius Jovito', 160, 10000, NULL, '202cb962ac59075b964b07152d234b70');
 
 -- --------------------------------------------------------
 
@@ -93,7 +109,7 @@ INSERT INTO `mahasiswa` (`nim`, `nama`, `email`, `password`, `total_sks`, `jsdp_
 
 CREATE TABLE `notifikasi` (
   `id_notif` int(11) NOT NULL,
-  `nim` char(15) DEFAULT NULL,
+  `nim` char(10) DEFAULT NULL,
   `judul` varchar(100) DEFAULT NULL,
   `pesan` text DEFAULT NULL,
   `tanggal` date DEFAULT NULL,
@@ -108,11 +124,11 @@ CREATE TABLE `notifikasi` (
 
 CREATE TABLE `perpanjangan` (
   `id_perpanjangan` int(11) NOT NULL,
-  `nim` char(15) NOT NULL,
-  `id_proposal` int(11) NOT NULL,
-  `lama_perpanjangan` int(11) NOT NULL,
-  `alasan` text NOT NULL,
-  `status_perpanjangan` enum('Diajukan','Disetujui','Ditolak') NOT NULL DEFAULT 'Diajukan',
+  `nim` char(10) DEFAULT NULL,
+  `id_proposal` char(13) DEFAULT NULL,
+  `lama_perpanjangan` int(11) DEFAULT NULL,
+  `alasan` text DEFAULT NULL,
+  `status_perpanjangan` enum('Diajukan','Disetujui','Ditolak') DEFAULT 'Diajukan',
   `tanggal_pengajuan` date DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
@@ -124,8 +140,8 @@ CREATE TABLE `perpanjangan` (
 
 CREATE TABLE `pesan` (
   `id_pesan` int(11) NOT NULL,
-  `pengirim` char(15) DEFAULT NULL,
-  `penerima` char(15) DEFAULT NULL,
+  `pengirim` char(10) DEFAULT NULL,
+  `penerima` char(10) DEFAULT NULL,
   `isi_pesan` text DEFAULT NULL,
   `waktu` datetime DEFAULT current_timestamp(),
   `is_read` tinyint(1) DEFAULT 0
@@ -136,9 +152,8 @@ CREATE TABLE `pesan` (
 --
 
 INSERT INTO `pesan` (`id_pesan`, `pengirim`, `penerima`, `isi_pesan`, `waktu`, `is_read`) VALUES
-(8, '202408108', 'DOSEN001', 'haloo bu', '2025-12-27 05:44:13', 0),
-(9, 'DOSEN001', '202408108', 'halo', '2025-12-27 05:46:57', 0),
-(10, 'DOSEN001', '202408108', 'halooo', '2025-12-27 05:49:37', 0);
+(1, '202408108', 'DOSEN001', 'haloo bu', '2025-12-29 03:30:30', 0),
+(2, 'DOSEN001', '202408108', 'halo', '2025-12-29 03:30:30', 0);
 
 -- --------------------------------------------------------
 
@@ -147,23 +162,25 @@ INSERT INTO `pesan` (`id_pesan`, `pengirim`, `penerima`, `isi_pesan`, `waktu`, `
 --
 
 CREATE TABLE `proposal` (
-  `id_proposal` int(11) NOT NULL,
-  `nim` char(15) NOT NULL,
-  `nidn_pembimbing` char(20) DEFAULT NULL,
-  `judul` text NOT NULL,
-  `jenis_ta` varchar(50) NOT NULL DEFAULT 'Rancang Bangun',
-  `file_proposal` varchar(255) DEFAULT NULL,
-  `status` enum('Diajukan','Disetujui','Ditolak','Revisi') DEFAULT 'Diajukan',
+  `idProposal` char(13) NOT NULL,
+  `Judul` text NOT NULL,
+  `jenis_ta` enum('Skripsi','Tugas Akhir','Magang','Proyek','Rancang Bangun') NOT NULL DEFAULT 'Rancang Bangun',
+  `status_pengajuan` enum('Diajukan','Disetujui','Ditolak','Revisi') DEFAULT 'Diajukan',
+  `tanggal_pengajuan` date DEFAULT NULL,
   `catatan_koor` text DEFAULT NULL,
-  `tanggal_pengajuan` date DEFAULT NULL
+  `file_dokumen` varchar(255) DEFAULT NULL,
+  `Total_Bimbingan` tinyint(4) DEFAULT 0,
+  `NIM` char(10) NOT NULL,
+  `NIDN_Pembimbing` char(10) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Dumping data untuk tabel `proposal`
 --
 
-INSERT INTO `proposal` (`id_proposal`, `nim`, `nidn_pembimbing`, `judul`, `jenis_ta`, `file_proposal`, `status`, `catatan_koor`, `tanggal_pengajuan`) VALUES
-(2, '2024081010', '041003', 'Proposal Saya', 'Rancang Bangun', '2024081010_1766946505.pdf', 'Disetujui', 'Semangat', '2025-12-28');
+INSERT INTO `proposal` (`idProposal`, `Judul`, `jenis_ta`, `status_pengajuan`, `tanggal_pengajuan`, `catatan_koor`, `file_dokumen`, `Total_Bimbingan`, `NIM`, `NIDN_Pembimbing`) VALUES
+('PROP-002', 'Proposal Saya', 'Rancang Bangun', 'Disetujui', '2025-12-28', 'Semangat', '2024081010_1766946505.pdf', 0, '2024081010', '041003'),
+('PROP-25122931', 'Hello World', 'Rancang Bangun', 'Disetujui', '2025-12-29', '', '2024081048_1766976580.pdf', 0, '2024081048', 'DOSEN001');
 
 -- --------------------------------------------------------
 
@@ -172,15 +189,23 @@ INSERT INTO `proposal` (`id_proposal`, `nim`, `nidn_pembimbing`, `judul`, `jenis
 --
 
 CREATE TABLE `sidang` (
-  `id_sidang` int(11) NOT NULL,
-  `id_proposal` int(11) NOT NULL,
-  `nidn_penguji` char(20) DEFAULT NULL,
-  `tanggal_sidang` datetime DEFAULT NULL,
-  `ruangan` varchar(50) DEFAULT NULL,
-  `nilai_akhir` int(11) DEFAULT NULL,
+  `idSidang` char(12) NOT NULL,
+  `Ruangan` varchar(50) DEFAULT NULL,
   `status_sidang` enum('Menunggu Jadwal','Dijadwalkan','Selesai','Lulus','Tidak Lulus','Revisi') DEFAULT 'Menunggu Jadwal',
-  `file_laporan` varchar(255) DEFAULT NULL
+  `nilai_akhir` float DEFAULT NULL,
+  `tanggal_sidang` datetime DEFAULT NULL,
+  `file_laporan` varchar(255) DEFAULT NULL,
+  `idProposal` char(13) NOT NULL,
+  `NIM` char(10) NOT NULL,
+  `NIDN` char(10) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data untuk tabel `sidang`
+--
+
+INSERT INTO `sidang` (`idSidang`, `Ruangan`, `status_sidang`, `nilai_akhir`, `tanggal_sidang`, `file_laporan`, `idProposal`, `NIM`, `NIDN`) VALUES
+('SID-25122999', 'B202', 'Dijadwalkan', NULL, '2025-12-01 10:00:00', 'test', 'PROP-25122931', '2024081048', '041002');
 
 --
 -- Indexes for dumped tables
@@ -190,21 +215,22 @@ CREATE TABLE `sidang` (
 -- Indeks untuk tabel `bimbingan`
 --
 ALTER TABLE `bimbingan`
-  ADD PRIMARY KEY (`id_bimbingan`),
-  ADD KEY `nim` (`nim`),
-  ADD KEY `nidn_pembimbing` (`nidn_pembimbing`);
+  ADD PRIMARY KEY (`idBimbingan`),
+  ADD KEY `fk_bimb_mhs` (`NIM`),
+  ADD KEY `fk_bimb_dosen` (`NIDN`),
+  ADD KEY `fk_bimb_prop` (`idProposal`);
 
 --
 -- Indeks untuk tabel `dosen`
 --
 ALTER TABLE `dosen`
-  ADD PRIMARY KEY (`nidn`);
+  ADD PRIMARY KEY (`NIDN`);
 
 --
 -- Indeks untuk tabel `mahasiswa`
 --
 ALTER TABLE `mahasiswa`
-  ADD PRIMARY KEY (`nim`);
+  ADD PRIMARY KEY (`NIM`);
 
 --
 -- Indeks untuk tabel `notifikasi`
@@ -216,9 +242,7 @@ ALTER TABLE `notifikasi`
 -- Indeks untuk tabel `perpanjangan`
 --
 ALTER TABLE `perpanjangan`
-  ADD PRIMARY KEY (`id_perpanjangan`),
-  ADD KEY `nim` (`nim`),
-  ADD KEY `id_proposal` (`id_proposal`);
+  ADD PRIMARY KEY (`id_perpanjangan`);
 
 --
 -- Indeks untuk tabel `pesan`
@@ -230,33 +254,28 @@ ALTER TABLE `pesan`
 -- Indeks untuk tabel `proposal`
 --
 ALTER TABLE `proposal`
-  ADD PRIMARY KEY (`id_proposal`),
-  ADD KEY `nim` (`nim`),
-  ADD KEY `nidn_pembimbing` (`nidn_pembimbing`);
+  ADD PRIMARY KEY (`idProposal`),
+  ADD UNIQUE KEY `unique_mhs_prop` (`NIM`),
+  ADD KEY `fk_prop_dosen` (`NIDN_Pembimbing`);
 
 --
 -- Indeks untuk tabel `sidang`
 --
 ALTER TABLE `sidang`
-  ADD PRIMARY KEY (`id_sidang`),
-  ADD KEY `id_proposal` (`id_proposal`),
-  ADD KEY `nidn_penguji` (`nidn_penguji`);
+  ADD PRIMARY KEY (`idSidang`),
+  ADD KEY `fk_sid_prop` (`idProposal`),
+  ADD KEY `fk_sid_mhs` (`NIM`),
+  ADD KEY `fk_sid_dosen` (`NIDN`);
 
 --
 -- AUTO_INCREMENT untuk tabel yang dibuang
 --
 
 --
--- AUTO_INCREMENT untuk tabel `bimbingan`
---
-ALTER TABLE `bimbingan`
-  MODIFY `id_bimbingan` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=20;
-
---
 -- AUTO_INCREMENT untuk tabel `notifikasi`
 --
 ALTER TABLE `notifikasi`
-  MODIFY `id_notif` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+  MODIFY `id_notif` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT untuk tabel `perpanjangan`
@@ -268,19 +287,7 @@ ALTER TABLE `perpanjangan`
 -- AUTO_INCREMENT untuk tabel `pesan`
 --
 ALTER TABLE `pesan`
-  MODIFY `id_pesan` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=11;
-
---
--- AUTO_INCREMENT untuk tabel `proposal`
---
-ALTER TABLE `proposal`
-  MODIFY `id_proposal` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
-
---
--- AUTO_INCREMENT untuk tabel `sidang`
---
-ALTER TABLE `sidang`
-  MODIFY `id_sidang` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+  MODIFY `id_pesan` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
 
 --
 -- Ketidakleluasaan untuk tabel pelimpahan (Dumped Tables)
@@ -290,29 +297,24 @@ ALTER TABLE `sidang`
 -- Ketidakleluasaan untuk tabel `bimbingan`
 --
 ALTER TABLE `bimbingan`
-  ADD CONSTRAINT `bimbingan_ibfk_1` FOREIGN KEY (`nim`) REFERENCES `mahasiswa` (`nim`),
-  ADD CONSTRAINT `bimbingan_ibfk_2` FOREIGN KEY (`nidn_pembimbing`) REFERENCES `dosen` (`nidn`);
-
---
--- Ketidakleluasaan untuk tabel `perpanjangan`
---
-ALTER TABLE `perpanjangan`
-  ADD CONSTRAINT `perpanjangan_ibfk_1` FOREIGN KEY (`nim`) REFERENCES `mahasiswa` (`nim`) ON DELETE CASCADE,
-  ADD CONSTRAINT `perpanjangan_ibfk_2` FOREIGN KEY (`id_proposal`) REFERENCES `proposal` (`id_proposal`) ON DELETE CASCADE;
+  ADD CONSTRAINT `fk_bimb_dosen` FOREIGN KEY (`NIDN`) REFERENCES `dosen` (`NIDN`),
+  ADD CONSTRAINT `fk_bimb_mhs` FOREIGN KEY (`NIM`) REFERENCES `mahasiswa` (`NIM`) ON DELETE CASCADE,
+  ADD CONSTRAINT `fk_bimb_prop` FOREIGN KEY (`idProposal`) REFERENCES `proposal` (`idProposal`) ON DELETE CASCADE;
 
 --
 -- Ketidakleluasaan untuk tabel `proposal`
 --
 ALTER TABLE `proposal`
-  ADD CONSTRAINT `proposal_ibfk_1` FOREIGN KEY (`nim`) REFERENCES `mahasiswa` (`nim`) ON DELETE CASCADE,
-  ADD CONSTRAINT `proposal_ibfk_2` FOREIGN KEY (`nidn_pembimbing`) REFERENCES `dosen` (`nidn`) ON DELETE SET NULL;
+  ADD CONSTRAINT `fk_prop_dosen` FOREIGN KEY (`NIDN_Pembimbing`) REFERENCES `dosen` (`NIDN`) ON DELETE SET NULL,
+  ADD CONSTRAINT `fk_prop_mhs` FOREIGN KEY (`NIM`) REFERENCES `mahasiswa` (`NIM`) ON DELETE CASCADE;
 
 --
 -- Ketidakleluasaan untuk tabel `sidang`
 --
 ALTER TABLE `sidang`
-  ADD CONSTRAINT `sidang_ibfk_1` FOREIGN KEY (`id_proposal`) REFERENCES `proposal` (`id_proposal`) ON DELETE CASCADE,
-  ADD CONSTRAINT `sidang_ibfk_2` FOREIGN KEY (`nidn_penguji`) REFERENCES `dosen` (`nidn`) ON DELETE SET NULL;
+  ADD CONSTRAINT `fk_sid_dosen` FOREIGN KEY (`NIDN`) REFERENCES `dosen` (`NIDN`),
+  ADD CONSTRAINT `fk_sid_mhs` FOREIGN KEY (`NIM`) REFERENCES `mahasiswa` (`NIM`) ON DELETE CASCADE,
+  ADD CONSTRAINT `fk_sid_prop` FOREIGN KEY (`idProposal`) REFERENCES `proposal` (`idProposal`) ON DELETE CASCADE;
 COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
